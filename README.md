@@ -1,5 +1,5 @@
 # Vort
-![Deploy](https://github.com/yourname/vort/actions/workflows/deploy.yml/badge.svg)
+![Deploy](https://github.com/Generalcom/v.png)
 
 
 **AI. Web. Apps. Custom Software That Moves Fast.**
