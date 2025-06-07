@@ -50,8 +50,8 @@ We’re open to collaborations, partnerships, and consulting.
 
 **🌍 Website:** [vort.co.za](https://vort.co.za)  
 **📧 Email:** support@vort.co.za  
-**🐙 GitLab:** [gitlab.com/vort](https://gitlab.com/vort)
 
+**Thanks for stopping by—contributions and stars are always welcome!**
 ---
 
 ## 🧠 Built by Devs. Backed by AI.
