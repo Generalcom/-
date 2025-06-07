@@ -1,4 +1,6 @@
 # Vort
+![Deploy](https://github.com/yourname/vort/actions/workflows/deploy.yml/badge.svg)
+
 
 **AI. Web. Apps. Custom Software That Moves Fast.**
 
