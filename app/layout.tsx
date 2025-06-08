@@ -76,17 +76,12 @@ export default function RootLayout({
   return (
     <html lang="en-ZA">
       <head>
-        {/* Preconnect to external domains */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
         <link rel="preconnect" href="https://www.googletagmanager.com" />
         <link rel="preconnect" href="https://pagead2.googlesyndication.com" />
-
-        {/* Theme and mobile optimization */}
         <meta name="theme-color" content="#1e293b" />
         <meta name="color-scheme" content="dark light" />
-
-        {/* Structured Data */}
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
@@ -127,8 +122,6 @@ export default function RootLayout({
           {children}
           <Toaster />
         </AuthProvider>
-
-        {/* Google Analytics */}
         <Script src="https://www.googletagmanager.com/gtag/js?id=GA_MEASUREMENT_ID" strategy="afterInteractive" />
         <Script id="google-analytics" strategy="afterInteractive">
           {`
@@ -138,8 +131,6 @@ export default function RootLayout({
             gtag('config', 'GA_MEASUREMENT_ID');
           `}
         </Script>
-
-        {/* Google AdSense */}
         <Script
           async
           src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXXXX"
