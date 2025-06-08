@@ -82,6 +82,12 @@ export default function RootLayout({
         <link rel="preconnect" href="https://www.googletagmanager.com" />
         <link rel="preconnect" href="https://pagead2.googlesyndication.com" />
 
+        {/* Google OAuth Client ID */}
+        <meta
+          name="google-signin-client_id"
+          content="660901719604-36sj46m2hdgnsep7jtll9eep43q96i4k.apps.googleusercontent.com"
+        />
+
         {/* Theme and mobile optimization */}
         <meta name="theme-color" content="#1e293b" />
         <meta name="color-scheme" content="dark light" />
