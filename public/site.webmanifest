@@ -1,0 +1,22 @@
+{
+  "name": "Vort - AI Training & Development Services",
+  "short_name": "Vort",
+  "description": "Transform your business with cutting-edge AI training, custom development, and intelligent marketing solutions",
+  "icons": [
+    {
+      "src": "/android-chrome-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/android-chrome-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "theme_color": "#8b5cf6",
+  "background_color": "#0f172a",
+  "display": "standalone",
+  "start_url": "/",
+  "scope": "/"
+}

@@ -1,0 +1,18 @@
+User-agent: *
+Allow: /
+
+# Disallow admin and private areas
+Disallow: /api/
+Disallow: /admin/
+Disallow: /_next/
+Disallow: /payment/callback/
+Disallow: /auth/
+
+# Allow important pages
+Allow: /
+Allow: /store
+Allow: /train-ai
+Allow: /billing
+
+# Sitemap
+Sitemap: https://vort.co.za/sitemap.xml
