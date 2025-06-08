@@ -10,8 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { CreditCard, Lock, Shield, AlertCircle, Loader2 } from "lucide-react"
-import { useToast } from "@/components/ui/use-toast"
-import { formatPrice } from "@/lib/utils"
+import { toast } from "@/components/ui/use-toast"
 
 const VORT_PUBLIC_KEY = "pk_test_7ef015cfa47b58e17476be2b8e02c3caaedef997" // Mock public key
 
@@ -34,7 +33,6 @@ export default function VortPaymentForm({
   onSuccess,
   onError,
 }: VortPaymentFormProps) {
-  const { toast } = useToast()
   const [isProcessing, setIsProcessing] = useState(false)
   const [cardData, setCardData] = useState({
     card_number: "",
@@ -44,6 +42,15 @@ export default function VortPaymentForm({
     cardholder_name: "",
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
+
+  const formatPrice = (price: number) => {
+    return new Intl.NumberFormat("en-ZA", {
+      style: "currency",
+      currency: "ZAR",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(price)
+  }
 
   const handleInputChange = (field: string, value: string) => {
     let processedValue = value

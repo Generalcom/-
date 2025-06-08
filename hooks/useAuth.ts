@@ -9,6 +9,7 @@ interface Profile {
   id: string
   full_name?: string
   avatar_url?: string
+  role?: string // Add role field
   // Add other profile fields as needed
 }
 interface AuthContextType {
@@ -47,7 +48,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         const { data, error, status } = await supabase
           .from("profiles")
-          .select(`id, full_name, avatar_url`)
+          .select(`id, full_name, avatar_url, role`)
           .eq("id", userId)
           .single()
 

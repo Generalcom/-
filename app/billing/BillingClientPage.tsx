@@ -15,14 +15,12 @@ import { motion } from "framer-motion"
 import { useAuth } from "@/hooks/useAuth"
 import { useCart } from "@/hooks/useCart"
 import VortPaymentForm from "@/components/VortPaymentForm" // Assuming this is the mock payment form
-import { useToast } from "@/components/ui/use-toast"
-import { formatPrice } from "@/lib/utils"
+import { toast } from "@/components/ui/use-toast"
 
 export default function BillingClientPage() {
   const router = useRouter()
   const { user, profile, loading: authLoading } = useAuth()
   const { items, removeFromCart, getTotalItems, getTotalPrice, getTotalSavings, clearCart } = useCart()
-  const { toast } = useToast()
 
   const [billingInfo, setBillingInfo] = useState({
     firstName: "",
@@ -40,6 +38,15 @@ export default function BillingClientPage() {
   const [subscribeNewsletter, setSubscribeNewsletter] = useState(true)
   const [showPaymentForm, setShowPaymentForm] = useState(false)
   const [isPageLoading, setIsPageLoading] = useState(true)
+
+  const formatPrice = (price: number) => {
+    return new Intl.NumberFormat("en-ZA", {
+      style: "currency",
+      currency: "ZAR",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(price)
+  }
 
   useEffect(() => {
     if (!authLoading) {
