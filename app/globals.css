@@ -5,24 +5,24 @@
 @layer base {
   :root {
     --background: 0 0% 100%; /* White */
-    --foreground: 222.2 84% 4.9%; /* Updated color */
+    --foreground: 0 0% 10%; /* Near Black */
     --card: 0 0% 100%; /* White */
-    --card-foreground: 222.2 84% 4.9%; /* Updated color */
+    --card-foreground: 0 0% 10%; /* Near Black */
     --popover: 0 0% 100%; /* White */
-    --popover-foreground: 222.2 84% 4.9%; /* Updated color */
-    --primary: 221.2 83.2% 53.3%; /* Updated color */
-    --primary-foreground: 210 40% 98%; /* Updated color */
-    --secondary: 210 40% 96%; /* Updated color */
-    --secondary-foreground: 222.2 84% 4.9%; /* Updated color */
-    --muted: 210 40% 96%; /* Updated color */
-    --muted-foreground: 215.4 16.3% 46.9%; /* Updated color */
-    --accent: 210 40% 96%; /* Updated color */
-    --accent-foreground: 222.2 84% 4.9%; /* Updated color */
+    --popover-foreground: 0 0% 10%; /* Near Black */
+    --primary: 0 0% 10%; /* Near Black */
+    --primary-foreground: 0 0% 98%; /* Near White */
+    --secondary: 0 0% 95%; /* Light Gray */
+    --secondary-foreground: 0 0% 10%; /* Near Black */
+    --muted: 0 0% 95%; /* Light Gray */
+    --muted-foreground: 0 0% 40%; /* Medium Gray */
+    --accent: 0 0% 90%; /* Gray */
+    --accent-foreground: 0 0% 10%; /* Near Black */
     --destructive: 0 84.2% 60.2%; /* Retain for destructive actions */
-    --destructive-foreground: 210 40% 98%; /* Updated color */
-    --border: 214.3 31.8% 91.4%; /* Updated color */
-    --input: 214.3 31.8% 91.4%; /* Updated color */
-    --ring: 221.2 83.2% 53.3%; /* Updated color */
+    --destructive-foreground: 0 0% 98%; /* Near White */
+    --border: 0 0% 85%; /* Light Gray Border */
+    --input: 0 0% 85%; /* Light Gray Input Border */
+    --ring: 0 0% 10%; /* Near Black */
     --radius: 0.5rem;
     --chart-1: 0 0% 30%;
     --chart-2: 0 0% 40%;
@@ -32,25 +32,25 @@
   }
 
   .dark {
-    --background: 222.2 84% 4.9%; /* Updated color */
-    --foreground: 210 40% 98%; /* Updated color */
-    --card: 222.2 84% 4.9%; /* Updated color */
-    --card-foreground: 210 40% 98%; /* Updated color */
-    --popover: 222.2 84% 4.9%; /* Updated color */
-    --popover-foreground: 210 40% 98%; /* Updated color */
-    --primary: 217.2 91.2% 59.8%; /* Updated color */
-    --primary-foreground: 222.2 84% 4.9%; /* Updated color */
-    --secondary: 217.2 32.6% 17.5%; /* Updated color */
-    --secondary-foreground: 210 40% 98%; /* Updated color */
-    --muted: 217.2 32.6% 17.5%; /* Updated color */
-    --muted-foreground: 215 20.2% 65.1%; /* Updated color */
-    --accent: 217.2 32.6% 17.5%; /* Updated color */
-    --accent-foreground: 210 40% 98%; /* Updated color */
+    --background: 0 0% 10%; /* Near Black */
+    --foreground: 0 0% 98%; /* Near White */
+    --card: 0 0% 12%; /* Dark Gray */
+    --card-foreground: 0 0% 98%; /* Near White */
+    --popover: 0 0% 12%; /* Dark Gray */
+    --popover-foreground: 0 0% 98%; /* Near White */
+    --primary: 0 0% 98%; /* Near White */
+    --primary-foreground: 0 0% 10%; /* Near Black */
+    --secondary: 0 0% 20%; /* Darker Gray */
+    --secondary-foreground: 0 0% 98%; /* Near White */
+    --muted: 0 0% 20%; /* Darker Gray */
+    --muted-foreground: 0 0% 60%; /* Lighter Medium Gray */
+    --accent: 0 0% 25%; /* Dark Accent Gray */
+    --accent-foreground: 0 0% 98%; /* Near White */
     --destructive: 0 62.8% 30.6%; /* Retain for destructive actions */
-    --destructive-foreground: 210 40% 98%; /* Updated color */
-    --border: 217.2 32.6% 17.5%; /* Updated color */
-    --input: 217.2 32.6% 17.5%; /* Updated color */
-    --ring: 224.3 76.3% 94.1%; /* Updated color */
+    --destructive-foreground: 0 0% 98%; /* Near White */
+    --border: 0 0% 30%; /* Medium Dark Gray Border */
+    --input: 0 0% 30%; /* Medium Dark Gray Input Border */
+    --ring: 0 0% 98%; /* Near White */
     --chart-1: 0 0% 70%;
     --chart-2: 0 0% 60%;
     --chart-3: 0 0% 50%;
