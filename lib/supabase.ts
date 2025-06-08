@@ -1,11 +1,10 @@
 import { createClient } from "@supabase/supabase-js"
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
-
 // For client-side usage
 export const createSupabaseClient = () => {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string
+
   return createClient(supabaseUrl, supabaseAnonKey, {
     auth: {
       persistSession: true,
@@ -17,7 +16,7 @@ export const createSupabaseClient = () => {
 // Create a singleton instance for client-side
 let clientInstance: ReturnType<typeof createSupabaseClient> | null = null
 
-export const getClientSupabaseClient = () => {
+export const getSupabaseClient = () => {
   if (!clientInstance && typeof window !== "undefined") {
     clientInstance = createSupabaseClient()
   }
@@ -26,18 +25,13 @@ export const getClientSupabaseClient = () => {
 
 // For server components and server actions
 export const createServerSupabaseClient = () => {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY as string
+
   return createClient(supabaseUrl, supabaseServiceKey, {
     auth: {
       autoRefreshToken: false,
       persistSession: false,
     },
   })
-}
-
-export function getSupabaseClient() {
-  return createClient(supabaseUrl, supabaseAnonKey)
-}
-
-export function getServerSupabaseClient() {
-  return createClient(supabaseUrl, supabaseServiceKey)
 }

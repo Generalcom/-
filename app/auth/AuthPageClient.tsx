@@ -27,23 +27,11 @@ export default function AuthPageClient() {
   const redirectPath = searchParams.get("redirect")
 
   useEffect(() => {
-    if (user && profile && !hasRedirected) {
+    if (user && redirectPath && !hasRedirected) {
       setHasRedirected(true)
-
-      // Check if user is admin - redirect to admin dashboard
-      if (profile.role === "admin" || user.email === "support@vort.co.za") {
-        router.replace("/admin")
-        return
-      }
-
-      // Regular user redirect logic
-      if (redirectPath) {
-        router.replace(redirectPath.startsWith("/") ? redirectPath : `/${redirectPath}`)
-      } else {
-        // If no redirect path, stay on current page to show user dashboard
-      }
+      router.replace(redirectPath.startsWith("/") ? redirectPath : `/${redirectPath}`)
     }
-  }, [user, profile, redirectPath, router, hasRedirected])
+  }, [user, redirectPath, router, hasRedirected])
 
   const handleGoogleSignIn = async () => {
     await signInWithGoogle()
@@ -105,18 +93,6 @@ export default function AuthPageClient() {
   }
 
   if (user && !redirectPath) {
-    // Check if user is admin - show redirect message
-    if (profile?.role === "admin" || user.email === "support@vort.co.za") {
-      return (
-        <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
-          <div className="text-center">
-            <h1 className="text-2xl font-bold mb-4">Redirecting to Admin Dashboard...</h1>
-            <p className="text-muted-foreground">Welcome back, Administrator!</p>
-          </div>
-        </div>
-      )
-    }
-
     return (
       <div className="min-h-screen bg-background text-foreground flex items-center justify-center px-4 sm:px-6">
         <motion.div

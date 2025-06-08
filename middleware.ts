@@ -1,10 +1,9 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
-import { createServerSupabaseClient } from "@/lib/supabase"
+import { createServerSupabaseClient } from "@/lib/supabase" // Ensure this path is correct
 
-const protectedPaths = ["/billing", "/checkout", "/train-ai", "/payment/success", "/payment/cancel"]
-const authRoutes = ["/auth"]
-const adminPaths = ["/admin"] // Add admin paths
+const protectedPaths = ["/billing", "/checkout", "/train-ai", "/payment/success", "/payment/cancel"] // Added payment status pages
+const authRoutes = ["/auth"] // Routes related to authentication
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
@@ -16,31 +15,13 @@ export async function middleware(request: NextRequest) {
 
   // If user is authenticated and tries to access auth page, redirect to home
   if (session && authRoutes.some((p) => pathname.startsWith(p))) {
-    // Check if user is admin
-    if (session.user.email === "support@vort.co.za") {
-      return NextResponse.redirect(new URL("/admin", request.url))
-    }
     return NextResponse.redirect(new URL("/", request.url))
-  }
-
-  // Admin path protection
-  if (adminPaths.some((p) => pathname.startsWith(p))) {
-    if (!session) {
-      const redirectUrl = new URL("/auth", request.url)
-      redirectUrl.searchParams.set("redirect", pathname)
-      return NextResponse.redirect(redirectUrl)
-    }
-
-    // Check if user is admin
-    if (session.user.email !== "support@vort.co.za") {
-      return NextResponse.redirect(new URL("/", request.url))
-    }
   }
 
   // If user is not authenticated and tries to access a protected path, redirect to auth
   if (!session && protectedPaths.some((p) => pathname.startsWith(p))) {
     const redirectUrl = new URL("/auth", request.url)
-    redirectUrl.searchParams.set("redirect", pathname)
+    redirectUrl.searchParams.set("redirect", pathname) // Keep full path for redirect
     return NextResponse.redirect(redirectUrl)
   }
 
@@ -48,5 +29,14 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|api/).*)"],
+  matcher: [
+    /*
+     * Match all request paths except for the ones starting with:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - api/ (API routes, assuming these might have their own auth)
+     */
+    "/((?!_next/static|_next/image|favicon.ico|api/).*)",
+  ],
 }
