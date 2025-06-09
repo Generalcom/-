@@ -16,13 +16,14 @@ import { useCart } from "@/hooks/useCart"
 
 export default function CheckoutPage() {
   const router = useRouter()
-  const { user } = useAuth()
+  const { user, loading: authLoading } = useAuth()
   const { items, updateQuantity, removeFromCart, getTotalItems, getTotalPrice, getTotalSavings, clearCart } = useCart()
   const [isProcessing, setIsProcessing] = useState(false)
+  const [authChecked, setAuthChecked] = useState(false)
   const [billingInfo, setBillingInfo] = useState({
-    firstName: user?.name?.split(" ")[0] || "",
-    lastName: user?.name?.split(" ")[1] || "",
-    email: user?.email || "",
+    firstName: "",
+    lastName: "",
+    email: "",
     phone: "",
     address: "",
     city: "",
@@ -31,20 +32,35 @@ export default function CheckoutPage() {
   })
   const [agreeToTerms, setAgreeToTerms] = useState(false)
 
+  // Initialize billing info when user loads
   useEffect(() => {
-    // Only redirect if we're sure the auth state has been loaded
-    if (user === null) {
-      // User is definitely not logged in
-      router.push("/auth?redirect=checkout")
-      return
+    if (user && !authChecked) {
+      setBillingInfo((prev) => ({
+        ...prev,
+        firstName: user.name?.split(" ")[0] || user.user_metadata?.full_name?.split(" ")[0] || "",
+        lastName: user.name?.split(" ")[1] || user.user_metadata?.full_name?.split(" ")[1] || "",
+        email: user.email || "",
+      }))
+      setAuthChecked(true)
     }
+  }, [user, authChecked])
 
-    // Only redirect if cart is definitely empty (not just loading)
-    if (items.length === 0 && !localStorage.getItem("cart_items")) {
-      router.push("/store")
-      return
+  // Check authentication and cart after auth is loaded
+  useEffect(() => {
+    if (!authLoading && authChecked) {
+      // Redirect to auth if not logged in
+      if (!user) {
+        router.push("/auth?redirect=checkout")
+        return
+      }
+
+      // Redirect to store if cart is empty
+      if (items.length === 0) {
+        router.push("/store")
+        return
+      }
     }
-  }, [user, items.length, router])
+  }, [authLoading, authChecked, user, items.length, router])
 
   const handleInputChange = (field: string, value: string) => {
     setBillingInfo((prev) => ({ ...prev, [field]: value }))
@@ -122,11 +138,25 @@ export default function CheckoutPage() {
     }
   }
 
-  if (!user || items.length === 0) {
+  // Show loading while auth is being checked
+  if (authLoading || !authChecked) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white flex items-center justify-center">
+      <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
         <div className="text-center">
           <h1 className="text-2xl font-bold mb-4">Loading...</h1>
+          <p className="text-muted-foreground">Checking authentication...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Show loading if redirecting (but this should be brief)
+  if (!user || items.length === 0) {
+    return (
+      <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold mb-4">Redirecting...</h1>
+          <p className="text-muted-foreground">Taking you to the right place...</p>
         </div>
       </div>
     )
@@ -172,23 +202,25 @@ export default function CheckoutPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white">
+    <div className="min-h-screen bg-background text-foreground">
       {/* Navigation */}
-      <nav className="bg-black/20 backdrop-blur-lg border-b border-white/10">
+      <nav className="bg-card/80 backdrop-blur-md border-b border-border sticky top-0 z-40">
         <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
-            <Link
-              href="/"
-              className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent"
-            >
+            <Link href="/" className="text-2xl font-bold text-foreground">
               Vort
             </Link>
             <div className="flex items-center space-x-6">
-              <Link href="/store" className="flex items-center text-gray-300 hover:text-blue-400 transition-colors">
+              <Link
+                href="/store"
+                className="flex items-center text-muted-foreground hover:text-foreground transition-colors"
+              >
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Back to Store
               </Link>
-              <span className="text-sm text-gray-300">Welcome, {user.name || user.email}</span>
+              <span className="text-sm text-muted-foreground">
+                Welcome, {user.user_metadata?.full_name || user.email}
+              </span>
             </div>
           </div>
         </div>
@@ -201,10 +233,8 @@ export default function CheckoutPage() {
           transition={{ duration: 0.8 }}
           className="text-center mb-8"
         >
-          <h1 className="text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-green-400 to-blue-400 bg-clip-text text-transparent">
-            Secure Checkout
-          </h1>
-          <p className="text-gray-300">Complete your purchase securely with PayFast</p>
+          <h1 className="text-4xl md:text-5xl font-bold mb-4 text-foreground">Secure Checkout</h1>
+          <p className="text-muted-foreground">Complete your purchase securely with PayFast</p>
         </motion.div>
 
         <div className="grid lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
@@ -215,34 +245,37 @@ export default function CheckoutPage() {
             transition={{ duration: 0.8, delay: 0.2 }}
             className="lg:col-span-1 order-2 lg:order-1"
           >
-            <Card className="bg-gradient-to-br from-slate-800/50 to-purple-900/30 border-purple-500/20 backdrop-blur-sm sticky top-6">
+            <Card className="bg-card border-border backdrop-blur-sm sticky top-6">
               <CardHeader>
-                <CardTitle className="flex items-center text-white">
-                  <Package className="h-6 w-6 mr-2 text-green-400" />
+                <CardTitle className="flex items-center text-foreground">
+                  <Package className="h-6 w-6 mr-2 text-primary" />
                   Order Summary
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 {items.map((item) => (
-                  <div key={item.id} className="flex items-center justify-between p-3 bg-slate-700/30 rounded-lg">
+                  <div
+                    key={item.id}
+                    className="flex items-center justify-between p-3 bg-secondary/50 rounded-lg border border-border"
+                  >
                     <div className="flex-1">
-                      <h4 className="font-semibold text-white text-sm">{item.title}</h4>
-                      <p className="text-xs text-gray-300">{item.category}</p>
+                      <h4 className="font-semibold text-foreground text-sm">{item.title}</h4>
+                      <p className="text-xs text-muted-foreground">{item.category}</p>
                       <div className="flex items-center space-x-2 mt-1">
-                        <span className="text-green-400 font-bold">R{item.price}</span>
+                        <span className="text-primary font-bold">R{item.price}</span>
                         {item.originalPrice > item.price && (
-                          <span className="text-xs text-gray-400 line-through">R{item.originalPrice}</span>
+                          <span className="text-xs text-muted-foreground line-through">R{item.originalPrice}</span>
                         )}
-                        <span className="text-xs text-gray-300">x {item.quantity}</span>
+                        <span className="text-xs text-muted-foreground">x {item.quantity}</span>
                       </div>
                     </div>
                     <div className="flex items-center space-x-2">
-                      <span className="text-green-400 font-bold">R{(item.price * item.quantity).toFixed(2)}</span>
+                      <span className="text-primary font-bold">R{(item.price * item.quantity).toFixed(2)}</span>
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => removeFromCart(item.id)}
-                        className="text-red-400 hover:text-red-300 hover:bg-red-500/10 h-8 w-8 p-0"
+                        className="text-destructive hover:text-destructive/80 hover:bg-destructive/10 h-8 w-8 p-0"
                       >
                         <Trash2 className="h-3 w-3" />
                       </Button>
@@ -250,20 +283,20 @@ export default function CheckoutPage() {
                   </div>
                 ))}
 
-                <div className="border-t border-gray-600 pt-4 space-y-2">
+                <div className="border-t border-border pt-4 space-y-2">
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-300">Subtotal ({getTotalItems()} items)</span>
-                    <span className="text-white">R{getTotalPrice().toFixed(2)}</span>
+                    <span className="text-muted-foreground">Subtotal ({getTotalItems()} items)</span>
+                    <span className="text-foreground">R{getTotalPrice().toFixed(2)}</span>
                   </div>
                   {getTotalSavings() > 0 && (
                     <div className="flex justify-between text-sm">
-                      <span className="text-gray-300">You save</span>
-                      <span className="text-green-400">-R{getTotalSavings().toFixed(2)}</span>
+                      <span className="text-muted-foreground">You save</span>
+                      <span className="text-primary">-R{getTotalSavings().toFixed(2)}</span>
                     </div>
                   )}
-                  <div className="flex justify-between text-lg font-bold border-t border-gray-600 pt-2">
-                    <span className="text-white">Total</span>
-                    <span className="text-green-400">R{getTotalPrice().toFixed(2)}</span>
+                  <div className="flex justify-between text-lg font-bold border-t border-border pt-2">
+                    <span className="text-foreground">Total</span>
+                    <span className="text-primary">R{getTotalPrice().toFixed(2)}</span>
                   </div>
                 </div>
               </CardContent>
@@ -278,40 +311,39 @@ export default function CheckoutPage() {
             className="lg:col-span-2 order-1 lg:order-2 space-y-6"
           >
             {/* Billing Information */}
-            <Card className="bg-gradient-to-br from-slate-800/50 to-purple-900/30 border-purple-500/20 backdrop-blur-sm">
+            <Card className="bg-card border-border backdrop-blur-sm">
               <CardHeader>
-                <CardTitle className="text-white">Billing Information</CardTitle>
+                <CardTitle className="text-foreground">Billing Information</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="firstName" className="text-gray-300">
+                    <Label htmlFor="firstName" className="text-foreground">
                       First Name *
                     </Label>
                     <Input
                       id="firstName"
                       value={billingInfo.firstName}
                       onChange={(e) => handleInputChange("firstName", e.target.value)}
-                      className="bg-slate-700/50 border-purple-500/30 text-white"
+                      className="bg-background border-border text-foreground"
                       required
                     />
                   </div>
                   <div>
-                    <Label htmlFor="lastName" className="text-gray-300">
+                    <Label htmlFor="lastName" className="text-foreground">
                       Last Name *
                     </Label>
                     <Input
                       id="lastName"
                       value={billingInfo.lastName}
                       onChange={(e) => handleInputChange("lastName", e.target.value)}
-                      className="bg-slate-700/50 border-purple-500/30 text-white"
+                      className="bg-background border-border text-foreground"
                       required
                     />
                   </div>
                 </div>
-
                 <div>
-                  <Label htmlFor="email" className="text-gray-300">
+                  <Label htmlFor="email" className="text-foreground">
                     Email Address *
                   </Label>
                   <Input
@@ -319,71 +351,71 @@ export default function CheckoutPage() {
                     type="email"
                     value={billingInfo.email}
                     onChange={(e) => handleInputChange("email", e.target.value)}
-                    className="bg-slate-700/50 border-purple-500/30 text-white"
+                    className="bg-background border-border text-foreground"
                     required
                   />
                 </div>
 
                 <div>
-                  <Label htmlFor="phone" className="text-gray-300">
+                  <Label htmlFor="phone" className="text-foreground">
                     Phone Number *
                   </Label>
                   <Input
                     id="phone"
                     value={billingInfo.phone}
                     onChange={(e) => handleInputChange("phone", e.target.value)}
-                    className="bg-slate-700/50 border-purple-500/30 text-white"
+                    className="bg-background border-border text-foreground"
                     placeholder="+27 XX XXX XXXX"
                     required
                   />
                 </div>
 
                 <div>
-                  <Label htmlFor="address" className="text-gray-300">
+                  <Label htmlFor="address" className="text-foreground">
                     Address
                   </Label>
                   <Input
                     id="address"
                     value={billingInfo.address}
                     onChange={(e) => handleInputChange("address", e.target.value)}
-                    className="bg-slate-700/50 border-purple-500/30 text-white"
+                    className="bg-background border-border text-foreground"
                   />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="city" className="text-gray-300">
+                    <Label htmlFor="city" className="text-foreground">
                       City
                     </Label>
                     <Input
                       id="city"
                       value={billingInfo.city}
                       onChange={(e) => handleInputChange("city", e.target.value)}
-                      className="bg-slate-700/50 border-purple-500/30 text-white"
+                      className="bg-background border-border text-foreground"
                     />
                   </div>
                   <div>
-                    <Label htmlFor="postalCode" className="text-gray-300">
+                    <Label htmlFor="postalCode" className="text-foreground">
                       Postal Code
                     </Label>
                     <Input
                       id="postalCode"
                       value={billingInfo.postalCode}
                       onChange={(e) => handleInputChange("postalCode", e.target.value)}
-                      className="bg-slate-700/50 border-purple-500/30 text-white"
+                      className="bg-background border-border text-foreground"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <Label htmlFor="province" className="text-gray-300">
+                  <Label htmlFor="province" className="text-foreground">
                     Province
                   </Label>
                   <Select value={billingInfo.province} onValueChange={(value) => handleInputChange("province", value)}>
-                    <SelectTrigger className="bg-slate-700/50 border-purple-500/30">
+                    <SelectTrigger className="bg-background border-border">
                       <SelectValue placeholder="Select province" />
                     </SelectTrigger>
-                    <SelectContent className="bg-slate-800 border-purple-500/30">
+                    <SelectContent className="bg-popover border-border">
                       <SelectItem value="EC">Eastern Cape</SelectItem>
                       <SelectItem value="FS">Free State</SelectItem>
                       <SelectItem value="GP">Gauteng</SelectItem>
@@ -400,13 +432,13 @@ export default function CheckoutPage() {
             </Card>
 
             {/* Payment Security */}
-            <Card className="bg-gradient-to-br from-slate-800/50 to-purple-900/30 border-green-500/20 backdrop-blur-sm">
+            <Card className="bg-card border-border backdrop-blur-sm">
               <CardContent className="p-6">
                 <div className="flex items-center space-x-4 mb-6">
-                  <Shield className="h-8 w-8 text-green-400" />
+                  <Shield className="h-8 w-8 text-primary" />
                   <div>
-                    <h3 className="font-semibold text-white">Secure Payment with PayFast</h3>
-                    <p className="text-sm text-gray-300">Your payment information is encrypted and secure</p>
+                    <h3 className="font-semibold text-foreground">Secure Payment with PayFast</h3>
+                    <p className="text-sm text-muted-foreground">Your payment information is encrypted and secure</p>
                   </div>
                 </div>
 
@@ -416,29 +448,31 @@ export default function CheckoutPage() {
                     checked={agreeToTerms}
                     onCheckedChange={(checked) => setAgreeToTerms(checked as boolean)}
                   />
-                  <Label htmlFor="terms" className="text-sm text-gray-300">
+                  <Label htmlFor="terms" className="text-sm text-muted-foreground">
                     I agree to the{" "}
-                    <a href="#" className="text-blue-400 hover:underline">
+                    <a href="#" className="text-primary hover:underline">
                       Terms of Service
                     </a>{" "}
                     and{" "}
-                    <a href="#" className="text-blue-400 hover:underline">
+                    <a href="#" className="text-primary hover:underline">
                       Privacy Policy
                     </a>
                   </Label>
                 </div>
 
                 <div className="space-y-3">
-                  <Link href="/billing">
-                    <Button className="w-full bg-gradient-to-r from-green-500 to-blue-600 hover:from-green-600 hover:to-blue-700 text-lg py-4">
-                      Proceed to Billing
-                    </Button>
-                  </Link>
+                  <Button
+                    onClick={handlePayFastPayment}
+                    disabled={isProcessing}
+                    className="w-full bg-primary text-primary-foreground hover:bg-primary/90 text-lg py-4"
+                  >
+                    {isProcessing ? "Processing..." : "Complete Payment"}
+                  </Button>
 
                   <Link href="/store">
                     <Button
                       variant="outline"
-                      className="w-full border-gray-400 text-gray-400 hover:bg-gray-400 hover:text-white"
+                      className="w-full border-border text-muted-foreground hover:bg-accent hover:text-foreground"
                     >
                       <ArrowLeft className="h-4 w-4 mr-2" />
                       Continue Shopping
@@ -446,7 +480,7 @@ export default function CheckoutPage() {
                   </Link>
                 </div>
 
-                <div className="mt-6 text-center text-xs text-gray-400 space-y-1">
+                <div className="mt-6 text-center text-xs text-muted-foreground space-y-1">
                   <p>Powered by PayFast - South Africa's leading payment gateway</p>
                   <p>We accept all major credit cards, EFT, and mobile payments</p>
                   <div className="flex justify-center items-center space-x-4 mt-2">
