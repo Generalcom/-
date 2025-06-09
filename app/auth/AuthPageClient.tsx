@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Chrome, Mail, User, LogOut, ShoppingBag, BrainIcon } from "lucide-react" // Renamed Brain to BrainIcon
+import { Chrome, Mail, User, LogOut, ShoppingBag, BrainIcon, RefreshCw, WifiOff } from "lucide-react"
 import Link from "next/link"
 import { motion } from "framer-motion"
 import { useAuth } from "@/hooks/useAuth"
@@ -19,27 +19,55 @@ export default function AuthPageClient() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [name, setName] = useState("")
-  const [hasRedirected, setHasRedirected] = useState(false)
-  const { user, profile, loading: authLoading, signInWithGoogle, signInWithEmail, signUpWithEmail, signOut } = useAuth()
+  const [redirecting, setRedirecting] = useState(false)
+  const {
+    user,
+    profile,
+    loading: authLoading,
+    error: authError,
+    signInWithGoogle,
+    signIn,
+    signUp,
+    signOut,
+    retryConnection,
+    offlineMode,
+  } = useAuth()
 
   const searchParams = useSearchParams()
   const router = useRouter()
   const redirectPath = searchParams.get("redirect")
 
+  // Simple admin check
+  const isAdmin = user?.email === "support@vort.co.za"
+
   useEffect(() => {
-    if (user && redirectPath && !hasRedirected) {
-      setHasRedirected(true)
-      router.replace(redirectPath.startsWith("/") ? redirectPath : `/${redirectPath}`)
+    // Only handle redirects for authenticated users
+    if (user && !redirecting) {
+      if (isAdmin) {
+        setRedirecting(true)
+        // Use window.location for admin to avoid React Router conflicts
+        window.location.href = "/admin"
+      } else if (redirectPath) {
+        setRedirecting(true)
+        router.push(redirectPath.startsWith("/") ? redirectPath : `/${redirectPath}`)
+      }
     }
-  }, [user, redirectPath, router, hasRedirected])
+  }, [user, isAdmin, redirectPath, router, redirecting])
 
   const handleGoogleSignIn = async () => {
-    await signInWithGoogle()
+    const { error } = await signInWithGoogle()
+    if (error) {
+      toast({
+        title: "Sign In Error",
+        description: error.message || "Failed to sign in with Google.",
+        variant: "destructive",
+      })
+    }
   }
 
   const handleEmailSignIn = async (e: React.FormEvent) => {
     e.preventDefault()
-    const { error } = await signInWithEmail(email, password)
+    const { error } = await signIn(email, password)
     if (error) {
       toast({
         title: "Sign In Error",
@@ -48,13 +76,12 @@ export default function AuthPageClient() {
       })
     } else {
       toast({ title: "Signed In", description: "Welcome back!" })
-      if (!redirectPath) router.push("/") // Redirect to home if no specific redirect
     }
   }
 
   const handleEmailSignUp = async (e: React.FormEvent) => {
     e.preventDefault()
-    const { error } = await signUpWithEmail(email, password, name)
+    const { error } = await signUp(email, password, name)
     if (error) {
       toast({
         title: "Sign Up Error",
@@ -66,11 +93,19 @@ export default function AuthPageClient() {
         title: "Sign Up Successful",
         description: "Please check your email to verify your account.",
       })
-      setActiveTab("signin") // Switch to signin tab after successful signup prompt
+      setActiveTab("signin")
     }
   }
 
-  if (authLoading && !user) {
+  const handleRetryConnection = () => {
+    retryConnection()
+    toast({
+      title: "Retrying Connection",
+      description: "Attempting to reconnect to authentication service...",
+    })
+  }
+
+  if (authLoading) {
     return (
       <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
         <div className="text-center">
@@ -81,18 +116,39 @@ export default function AuthPageClient() {
     )
   }
 
-  if (user && redirectPath && !hasRedirected) {
+  // Show error state with retry button
+  if (authError && !offlineMode) {
+    return (
+      <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
+        <div className="text-center max-w-md px-4">
+          <h1 className="text-2xl font-bold mb-4 text-destructive">Authentication Error</h1>
+          <p className="text-muted-foreground mb-6">
+            We're having trouble connecting to our authentication service. This could be due to network issues or
+            service unavailability.
+          </p>
+          <Button onClick={handleRetryConnection} className="flex items-center gap-2">
+            <RefreshCw className="h-4 w-4" /> Retry Connection
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  if (redirecting) {
     return (
       <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-2xl font-bold mb-4">Redirecting...</h1>
+          <h1 className="text-2xl font-bold mb-4">
+            {isAdmin ? "Redirecting to Admin Dashboard..." : "Redirecting..."}
+          </h1>
           <p className="text-muted-foreground">Taking you to your destination...</p>
         </div>
       </div>
     )
   }
 
-  if (user && !redirectPath) {
+  // Show user dashboard for regular authenticated users without redirect
+  if (user && !isAdmin && !redirectPath) {
     return (
       <div className="min-h-screen bg-background text-foreground flex items-center justify-center px-4 sm:px-6">
         <motion.div
@@ -105,6 +161,11 @@ export default function AuthPageClient() {
             <CardHeader className="text-center">
               <CardTitle className="text-3xl font-semibold text-foreground">Welcome Back!</CardTitle>
               <CardDescription className="text-muted-foreground">{profile?.full_name || user.email}</CardDescription>
+              {offlineMode && (
+                <div className="mt-2 flex items-center justify-center text-amber-500 text-sm">
+                  <WifiOff className="h-4 w-4 mr-1" /> Offline Mode
+                </div>
+              )}
             </CardHeader>
             <CardContent className="space-y-6">
               {profile?.avatar_url ? (
@@ -152,9 +213,16 @@ export default function AuthPageClient() {
             <Link href="/" className="text-2xl font-bold text-foreground">
               Vort
             </Link>
-            <Link href="/" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-              Back to Home
-            </Link>
+            <div className="flex items-center gap-4">
+              {offlineMode && (
+                <span className="text-amber-500 text-sm flex items-center">
+                  <WifiOff className="h-4 w-4 mr-1" /> Offline Mode
+                </span>
+              )}
+              <Link href="/" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+                Back to Home
+              </Link>
+            </div>
           </div>
         </div>
       </nav>
@@ -174,6 +242,16 @@ export default function AuthPageClient() {
               <CardDescription className="text-muted-foreground">
                 {redirectPath ? "Please sign in or sign up to continue" : "Access your Vort account"}
               </CardDescription>
+              {offlineMode && (
+                <div className="mt-2 flex items-center justify-center gap-2">
+                  <span className="text-amber-500 text-sm flex items-center">
+                    <WifiOff className="h-4 w-4 mr-1" /> Offline Mode
+                  </span>
+                  <Button size="sm" variant="outline" onClick={handleRetryConnection} className="h-7 text-xs">
+                    <RefreshCw className="h-3 w-3 mr-1" /> Retry
+                  </Button>
+                </div>
+              )}
             </CardHeader>
             <CardContent className="space-y-6">
               <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -195,7 +273,7 @@ export default function AuthPageClient() {
                 <TabsContent value="signin" className="space-y-6 pt-6">
                   <Button
                     onClick={handleGoogleSignIn}
-                    disabled={authLoading}
+                    disabled={authLoading || offlineMode}
                     variant="outline"
                     className="w-full border-primary text-primary hover:bg-accent"
                   >
@@ -241,13 +319,18 @@ export default function AuthPageClient() {
                     >
                       <Mail className="mr-2 h-4 w-4" /> {authLoading ? "Signing In..." : "Sign In"}
                     </Button>
+                    {offlineMode && (
+                      <p className="text-xs text-center text-amber-500 mt-2">
+                        Note: In offline mode, only admin login works with email: support@vort.co.za
+                      </p>
+                    )}
                   </form>
                 </TabsContent>
 
                 <TabsContent value="signup" className="space-y-6 pt-6">
                   <Button
                     onClick={handleGoogleSignIn}
-                    disabled={authLoading}
+                    disabled={authLoading || offlineMode}
                     variant="outline"
                     className="w-full border-primary text-primary hover:bg-accent"
                   >
@@ -272,6 +355,7 @@ export default function AuthPageClient() {
                         className="bg-background border-input"
                         required
                         placeholder="Your Name"
+                        disabled={offlineMode}
                       />
                     </div>
                     <div>
@@ -284,6 +368,7 @@ export default function AuthPageClient() {
                         className="bg-background border-input"
                         required
                         placeholder="you@example.com"
+                        disabled={offlineMode}
                       />
                     </div>
                     <div>
@@ -296,15 +381,21 @@ export default function AuthPageClient() {
                         className="bg-background border-input"
                         required
                         placeholder="Create a strong password"
+                        disabled={offlineMode}
                       />
                     </div>
                     <Button
                       type="submit"
-                      disabled={authLoading}
+                      disabled={authLoading || offlineMode}
                       className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
                     >
                       <User className="mr-2 h-4 w-4" /> {authLoading ? "Creating Account..." : "Create Account"}
                     </Button>
+                    {offlineMode && (
+                      <p className="text-xs text-center text-amber-500 mt-2">
+                        Sign up is not available in offline mode
+                      </p>
+                    )}
                   </form>
                 </TabsContent>
               </Tabs>
