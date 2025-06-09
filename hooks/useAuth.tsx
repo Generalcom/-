@@ -93,12 +93,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(session?.user ?? null)
 
         if (session?.user) {
-          try {
-            await fetchProfile(session.user.id)
-          } catch (err) {
-            console.error("Error fetching profile:", err)
-            // Continue even if profile fetch fails
-          }
+          // Don't await profile fetch to avoid blocking
+          fetchProfile(session.user.id).catch((err) => {
+            console.error("Error fetching profile during init:", err)
+          })
         }
       } catch (err) {
         console.error("Auth initialization error:", err)
@@ -119,19 +117,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(session?.user ?? null)
 
         if (session?.user) {
-          try {
-            await fetchProfile(session.user.id)
-          } catch (err) {
+          // Don't await profile fetch to avoid blocking
+          fetchProfile(session.user.id).catch((err) => {
             console.error("Error fetching profile on auth change:", err)
-            // Continue without profile
-          }
+          })
         } else {
           setProfile(null)
         }
       } catch (err) {
         console.error("Auth state change error:", err)
-      } finally {
-        setLoading(false)
       }
     })
 
@@ -158,21 +152,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       console.log("Fetching profile for user:", userId)
 
-      // Set a timeout to prevent hanging
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error("Profile fetch timeout")), 5000),
-      )
-
-      // Try to get the profile with timeout
-      const profilePromise = supabase.from("profiles").select("*").eq("id", userId).single()
-
-      // Race between fetch and timeout
-      const { data, error } = (await Promise.race([
-        profilePromise,
-        timeoutPromise.then(() => {
-          throw new Error("Profile fetch timeout")
-        }),
-      ])) as any
+      // Try to get the profile without timeout
+      const { data, error } = await supabase.from("profiles").select("*").eq("id", userId).single()
 
       if (error) {
         console.error("Profile fetch error:", error)
@@ -241,6 +222,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               created_at: new Date().toISOString(),
               updated_at: new Date().toISOString(),
             })
+          } else {
+            // Create a basic user profile fallback
+            setProfile({
+              id: userId,
+              email: user?.email || "",
+              full_name: user?.user_metadata?.full_name || "User",
+              avatar_url: null,
+              role: "user",
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            })
           }
         }
       } else if (data) {
@@ -250,21 +242,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (err) {
       console.error("Error fetching profile:", err)
 
-      // Create a fallback profile for admin users
-      if (user?.email === "support@vort.co.za") {
-        setProfile({
-          id: userId,
-          email: "support@vort.co.za",
-          full_name: "System Administrator (Fallback)",
-          avatar_url: null,
-          role: "admin",
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        })
+      // Create a fallback profile for any user
+      const fallbackProfile = {
+        id: userId,
+        email: user?.email || "",
+        full_name: user?.user_metadata?.full_name || "User",
+        avatar_url: null,
+        role: user?.email === "support@vort.co.za" ? "admin" : "user",
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       }
 
+      setProfile(fallbackProfile)
+
       // Check if it's a network error and set offline mode
-      if (err instanceof Error && err.message.includes("fetch")) {
+      if (err instanceof Error && (err.message.includes("fetch") || err.message.includes("timeout"))) {
         setOfflineMode(true)
       }
     }
