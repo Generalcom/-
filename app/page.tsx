@@ -489,7 +489,7 @@ export default function HomePage() {
                   </Link>
                 </li>
                 <li>
-                  <Link href="/privacy-policy" className="text-muted-foreground hover:text-primary transition-colors">
+                  <Link href="/privacy" className="text-muted-foreground hover:text-primary transition-colors">
                     Privacy Policy
                   </Link>
                 </li>
