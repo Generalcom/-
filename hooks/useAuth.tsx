@@ -54,7 +54,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Check if we're online
   useEffect(() => {
-    const handleOnline = () => setOfflineMode(false)
+    const handleOnline = () => {
+      setOfflineMode(false)
+      // Retry fetching profile when coming back online
+      if (user && !profile) {
+        fetchProfile(user.id).catch(console.error)
+      }
+    }
     const handleOffline = () => setOfflineMode(true)
 
     window.addEventListener("online", handleOnline)
@@ -67,7 +73,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       window.removeEventListener("online", handleOnline)
       window.removeEventListener("offline", handleOffline)
     }
-  }, [])
+  }, [user, profile])
 
   useEffect(() => {
     if (!supabase) {
@@ -79,11 +85,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const initAuth = async () => {
       try {
-        // Get initial session
-        const { data: sessionData, error: sessionError } = await supabase.auth.getSession()
+        // Get initial session with timeout
+        const sessionPromise = supabase.auth.getSession()
+        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Session timeout")), 10000))
+
+        const { data: sessionData, error: sessionError } = (await Promise.race([sessionPromise, timeoutPromise])) as any
 
         if (sessionError) {
           console.error("Session error:", sessionError)
+          if (sessionError.message.includes("fetch") || sessionError.message.includes("timeout")) {
+            setOfflineMode(true)
+          }
           setError(sessionError)
           setLoading(false)
           return
@@ -100,6 +112,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       } catch (err) {
         console.error("Auth initialization error:", err)
+        if (err instanceof Error && (err.message.includes("fetch") || err.message.includes("timeout"))) {
+          setOfflineMode(true)
+        }
         setError(err instanceof Error ? err : new Error("Unknown authentication error"))
       } finally {
         setLoading(false)
@@ -145,6 +160,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         })
+      } else if (user?.email) {
+        // Create a basic user profile for offline mode
+        setProfile({
+          id: userId,
+          email: user.email,
+          full_name: user.user_metadata?.full_name || "User",
+          avatar_url: null,
+          role: "user",
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
       }
       return
     }
@@ -152,11 +178,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       console.log("Fetching profile for user:", userId)
 
-      // Try to get the profile without timeout
-      const { data, error } = await supabase.from("profiles").select("*").eq("id", userId).single()
+      // Add timeout to profile fetch
+      const profilePromise = supabase.from("profiles").select("*").eq("id", userId).single()
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("Profile fetch timeout")), 8000),
+      )
+
+      const { data, error } = (await Promise.race([profilePromise, timeoutPromise])) as any
 
       if (error) {
         console.error("Profile fetch error:", error)
+
+        // Handle network errors
+        if (
+          error.message?.includes("fetch") ||
+          error.message?.includes("timeout") ||
+          error.message?.includes("Failed to fetch")
+        ) {
+          console.log("Network error detected, switching to offline mode")
+          setOfflineMode(true)
+
+          // Create fallback profile
+          const fallbackProfile = {
+            id: userId,
+            email: user?.email || "",
+            full_name:
+              user?.user_metadata?.full_name ||
+              (user?.email === "support@vort.co.za" ? "System Administrator" : "User"),
+            avatar_url: null,
+            role: user?.email === "support@vort.co.za" ? "admin" : "user",
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          }
+          setProfile(fallbackProfile)
+          return
+        }
 
         // If profile doesn't exist, create it
         if (error.code === "PGRST116") {
@@ -198,42 +254,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           } catch (err) {
             console.error("Error in profile creation flow:", err)
             // Create a fallback profile based on user email
-            if (user?.email === "support@vort.co.za") {
-              setProfile({
-                id: userId,
-                email: "support@vort.co.za",
-                full_name: "System Administrator (Fallback)",
-                avatar_url: null,
-                role: "admin",
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString(),
-              })
+            const fallbackProfile = {
+              id: userId,
+              email: user?.email || "",
+              full_name:
+                user?.user_metadata?.full_name ||
+                (user?.email === "support@vort.co.za" ? "System Administrator" : "User"),
+              avatar_url: null,
+              role: user?.email === "support@vort.co.za" ? "admin" : "user",
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
             }
+            setProfile(fallbackProfile)
           }
         } else {
           // For other errors, create a fallback profile
-          if (user?.email === "support@vort.co.za") {
-            setProfile({
-              id: userId,
-              email: "support@vort.co.za",
-              full_name: "System Administrator (Fallback)",
-              avatar_url: null,
-              role: "admin",
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-            })
-          } else {
-            // Create a basic user profile fallback
-            setProfile({
-              id: userId,
-              email: user?.email || "",
-              full_name: user?.user_metadata?.full_name || "User",
-              avatar_url: null,
-              role: "user",
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-            })
+          const fallbackProfile = {
+            id: userId,
+            email: user?.email || "",
+            full_name:
+              user?.user_metadata?.full_name ||
+              (user?.email === "support@vort.co.za" ? "System Administrator" : "User"),
+            avatar_url: null,
+            role: user?.email === "support@vort.co.za" ? "admin" : "user",
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
           }
+          setProfile(fallbackProfile)
         }
       } else if (data) {
         console.log("Profile loaded:", data)
@@ -246,7 +293,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const fallbackProfile = {
         id: userId,
         email: user?.email || "",
-        full_name: user?.user_metadata?.full_name || "User",
+        full_name:
+          user?.user_metadata?.full_name || (user?.email === "support@vort.co.za" ? "System Administrator" : "User"),
         avatar_url: null,
         role: user?.email === "support@vort.co.za" ? "admin" : "user",
         created_at: new Date().toISOString(),
@@ -256,7 +304,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setProfile(fallbackProfile)
 
       // Check if it's a network error and set offline mode
-      if (err instanceof Error && (err.message.includes("fetch") || err.message.includes("timeout"))) {
+      if (
+        err instanceof Error &&
+        (err.message.includes("fetch") || err.message.includes("timeout") || err.message.includes("Failed to fetch"))
+      ) {
+        console.log("Network error in catch block, switching to offline mode")
         setOfflineMode(true)
       }
     }
@@ -384,7 +436,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       })
 
       // If there's a network error, switch to offline mode
-      if (error && error.message.includes("fetch")) {
+      if (error && (error.message.includes("fetch") || error.message.includes("Failed to fetch"))) {
         setOfflineMode(true)
 
         // Special case for admin
@@ -416,7 +468,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.error("Sign in error:", err)
 
       // Check if it's a network error
-      if (err instanceof Error && err.message.includes("fetch")) {
+      if (err instanceof Error && (err.message.includes("fetch") || err.message.includes("Failed to fetch"))) {
         setOfflineMode(true)
 
         // Special case for admin
@@ -484,7 +536,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.error("Sign up error:", err)
 
       // Check if it's a network error
-      if (err instanceof Error && err.message.includes("fetch")) {
+      if (err instanceof Error && (err.message.includes("fetch") || err.message.includes("Failed to fetch"))) {
         setOfflineMode(true)
       }
 
@@ -508,7 +560,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.error("Google sign in error:", err)
 
       // Check if it's a network error
-      if (err instanceof Error && err.message.includes("fetch")) {
+      if (err instanceof Error && (err.message.includes("fetch") || err.message.includes("Failed to fetch"))) {
         setOfflineMode(true)
       }
 
@@ -533,7 +585,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.error("Sign out error:", err)
 
       // If network error, just clear state
-      if (err instanceof Error && err.message.includes("fetch")) {
+      if (err instanceof Error && (err.message.includes("fetch") || err.message.includes("Failed to fetch"))) {
         setOfflineMode(true)
         setUser(null)
         setProfile(null)

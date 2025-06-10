@@ -1,30 +1,34 @@
-import type { Metadata } from "next"
+import { Suspense } from "react"
 import TrainAIClientPage from "./TrainAIClientPage"
+import { createServerSupabaseClient } from "@/lib/supabase"
 
-export const metadata: Metadata = {
-  title: "AI Training Platform — Vort",
-  description:
-    "Train custom AI models for your business needs. Interactive AI training with real-time feedback and performance optimization.",
-  keywords:
-    "AI training, machine learning, custom AI models, business AI, model training, artificial intelligence, automated training",
-  openGraph: {
-    title: "AI Training Platform — Vort",
-    description: "Train custom AI models with our interactive platform. Real-time feedback and optimization.",
-    url: "https://vort.co.za/train-ai",
-    images: [
-      {
-        url: "https://vort.co.za/og-train-ai.png",
-        width: 1200,
-        height: 630,
-        alt: "Vort AI Training Platform",
-      },
-    ],
-  },
-  alternates: {
-    canonical: "https://vort.co.za/train-ai",
-  },
+export const metadata = {
+  title: "Train AI Model - Vort",
+  description: "Experience the power of AI training with our interactive simulator.",
 }
 
-export default function TrainAIPage() {
-  return <TrainAIClientPage />
+export default async function TrainAIPage({
+  searchParams,
+}: {
+  searchParams: { [key: string]: string | string[] | undefined }
+}) {
+  // Try to get session, but don't block rendering if it fails
+  let user = null
+  try {
+    const supabase = createServerSupabaseClient()
+    const { data } = await supabase.auth.getSession()
+    user = data.session?.user || null
+  } catch (error) {
+    console.error("Error fetching session:", error)
+  }
+
+  // Get auth flags from searchParams
+  const authAttempted = searchParams.auth_attempted === "true"
+  const authError = searchParams.auth_error === "true"
+
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+      <TrainAIClientPage initialUser={user} authAttempted={authAttempted} authError={authError} />
+    </Suspense>
+  )
 }
