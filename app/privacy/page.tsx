@@ -160,7 +160,7 @@ export default function PrivacyPolicyPage() {
                   </li>
                 </ul>
                 <p className="text-muted-foreground">
-                  To exercise these rights, please contact us at support@vort.co.za
+                  To exercise these rights, please contact us at privacy@vort.co.za
                 </p>
               </section>
 
@@ -213,10 +213,10 @@ export default function PrivacyPolicyPage() {
                   <p className="text-foreground mb-2">
                     <strong>Vort</strong>
                   </p>
-                  <p className="text-muted-foreground">Email: support@vort.co.za</p>
-                  <p className="text-muted-foreground">Phone: 011 766 3892</p>
+                  <p className="text-muted-foreground">Email: privacy@vort.co.za</p>
+                  <p className="text-muted-foreground">Phone: +27 11 123 4567</p>
                   <p className="text-muted-foreground">
-                    Address: 132 Corner Loeaday and Fox Street, Marshall Town, South Africa
+                    Address: 135/39 Bolton rd, Rosebank, Johannesburg, Gauteng 2000, South Africa
                   </p>
                 </div>
               </section>
