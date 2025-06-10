@@ -1,3 +1,6 @@
+-- First, ensure the profiles table has the role column
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS role VARCHAR(20) DEFAULT 'user';
+
 -- Create job_positions table
 CREATE TABLE IF NOT EXISTS job_positions (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -115,21 +118,50 @@ CREATE POLICY "Anyone can view active job positions" ON job_positions
 CREATE POLICY "Anyone can submit job applications" ON job_applications
   FOR INSERT WITH CHECK (true);
 
--- Admin policies (for authenticated admin users)
-CREATE POLICY "Admins can manage job positions" ON job_positions
-  FOR ALL USING (
-    EXISTS (
-      SELECT 1 FROM profiles 
-      WHERE profiles.id = auth.uid() 
-      AND profiles.role = 'admin'
-    )
-  );
+-- Admin policies (only create if role column exists and has admin users)
+DO $$
+BEGIN
+  -- Check if there are any admin users before creating admin policies
+  IF EXISTS (SELECT 1 FROM profiles WHERE role = 'admin' LIMIT 1) THEN
+    -- Create admin policies for job positions
+    IF NOT EXISTS (
+      SELECT 1 FROM pg_policies 
+      WHERE tablename = 'job_positions' 
+      AND policyname = 'Admins can manage job positions'
+    ) THEN
+      EXECUTE 'CREATE POLICY "Admins can manage job positions" ON job_positions
+        FOR ALL USING (
+          EXISTS (
+            SELECT 1 FROM profiles 
+            WHERE profiles.id = auth.uid() 
+            AND profiles.role = ''admin''
+          )
+        )';
+    END IF;
 
-CREATE POLICY "Admins can view all job applications" ON job_applications
-  FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM profiles 
-      WHERE profiles.id = auth.uid() 
-      AND profiles.role = 'admin'
-    )
-  );
+    -- Create admin policies for job applications
+    IF NOT EXISTS (
+      SELECT 1 FROM pg_policies 
+      WHERE tablename = 'job_applications' 
+      AND policyname = 'Admins can view all job applications'
+    ) THEN
+      EXECUTE 'CREATE POLICY "Admins can view all job applications" ON job_applications
+        FOR SELECT USING (
+          EXISTS (
+            SELECT 1 FROM profiles 
+            WHERE profiles.id = auth.uid() 
+            AND profiles.role = ''admin''
+          )
+        )';
+    END IF;
+  END IF;
+END $$;
+
+-- Grant necessary permissions
+GRANT SELECT ON job_positions TO anon, authenticated;
+GRANT INSERT ON job_applications TO anon, authenticated;
+GRANT ALL ON job_positions TO service_role;
+GRANT ALL ON job_applications TO service_role;
+
+-- Create indexes for profiles role column if it doesn't exist
+CREATE INDEX IF NOT EXISTS idx_profiles_role ON profiles(role);

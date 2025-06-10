@@ -31,6 +31,7 @@ interface JobApplicationFormProps {
 export default function JobApplicationForm({ position, onClose }: JobApplicationFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [resumeFile, setResumeFile] = useState<File | null>(null)
+  const [uploadProgress, setUploadProgress] = useState(0)
   const { toast } = useToast()
 
   const [formData, setFormData] = useState({
@@ -86,20 +87,97 @@ export default function JobApplicationForm({ position, onClose }: JobApplication
     }
   }
 
+  // Function to ensure the storage bucket exists
+  const ensureStorageBucket = async (supabase: any) => {
+    try {
+      // Check if bucket exists
+      const { data: buckets } = await supabase.storage.listBuckets()
+      const bucketExists = buckets.some((bucket: any) => bucket.name === "job-applications")
+
+      if (!bucketExists) {
+        // Create the bucket if it doesn't exist
+        const { error } = await supabase.storage.createBucket("job-applications", {
+          public: true,
+          fileSizeLimit: 5242880, // 5MB
+        })
+
+        if (error) {
+          console.error("Error creating bucket:", error)
+          return false
+        }
+
+        // Set bucket policies
+        const { error: policyError } = await supabase.storage.from("job-applications").createPolicy({
+          name: "Public Access",
+          definition: {
+            statements: [
+              {
+                effect: "allow",
+                principal: "*",
+                action: "object:get",
+                resource: "job-applications/*",
+              },
+              {
+                effect: "allow",
+                principal: "authenticated",
+                action: "object:upload",
+                resource: "job-applications/*",
+              },
+              {
+                effect: "allow",
+                principal: "anon",
+                action: "object:upload",
+                resource: "job-applications/*",
+              },
+            ],
+          },
+        })
+
+        if (policyError) {
+          console.error("Error setting bucket policy:", policyError)
+          return false
+        }
+      }
+
+      return true
+    } catch (error) {
+      console.error("Error checking/creating bucket:", error)
+      return false
+    }
+  }
+
   const uploadResume = async (file: File): Promise<string | null> => {
     try {
       const supabase = createSupabaseClient()
+
+      // Ensure the bucket exists with proper permissions
+      const bucketReady = await ensureStorageBucket(supabase)
+      if (!bucketReady) {
+        console.error("Storage bucket not ready")
+        return null
+      }
+
       const fileExt = file.name.split(".").pop()
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`
       const filePath = `resumes/${fileName}`
 
-      const { error: uploadError } = await supabase.storage.from("job-applications").upload(filePath, file)
+      // Upload with progress tracking
+      const { error: uploadError, data } = await supabase.storage.from("job-applications").upload(filePath, file, {
+        cacheControl: "3600",
+        upsert: false,
+        contentType: file.type,
+        onUploadProgress: (progress) => {
+          const percent = Math.round((progress.loaded / progress.total) * 100)
+          setUploadProgress(percent)
+        },
+      })
 
       if (uploadError) {
         console.error("Upload error:", uploadError)
         return null
       }
 
+      // Get public URL
       const {
         data: { publicUrl },
       } = supabase.storage.from("job-applications").getPublicUrl(filePath)
@@ -114,6 +192,7 @@ export default function JobApplicationForm({ position, onClose }: JobApplication
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSubmitting(true)
+    setUploadProgress(0)
 
     try {
       const supabase = createSupabaseClient()
@@ -125,7 +204,7 @@ export default function JobApplicationForm({ position, onClose }: JobApplication
         if (!resumeUrl) {
           toast({
             title: "Upload failed",
-            description: "Failed to upload resume. Please try again.",
+            description: "Failed to upload resume. Please try again or contact support.",
             variant: "destructive",
           })
           setIsSubmitting(false)
@@ -144,6 +223,62 @@ export default function JobApplicationForm({ position, onClose }: JobApplication
         portfolio_url: formData.portfolioUrl || null,
         cover_letter: formData.coverLetter || null,
         resume_url: resumeUrl,
+        experience_years: formData.experienceYears ? Number.parseInt(formData.experienceYears) : null,
+        current_company: formData.currentCompany || null,
+        current_position: formData.currentPosition || null,
+        salary_expectation: formData.salaryExpectation ? Number.parseInt(formData.salaryExpectation) : null,
+        availability_date: formData.availabilityDate || null,
+      }
+
+      const { error } = await supabase.from("job_applications").insert([applicationData])
+
+      if (error) {
+        console.error("Application submission error:", error)
+        toast({
+          title: "Submission failed",
+          description: "Failed to submit application. Please try again.",
+          variant: "destructive",
+        })
+        return
+      }
+
+      toast({
+        title: "Application submitted!",
+        description: "Thank you for your interest. We'll be in touch soon.",
+      })
+
+      onClose()
+    } catch (error) {
+      console.error("Error submitting application:", error)
+      toast({
+        title: "Submission failed",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  // Function to submit without resume if there are issues
+  const handleSubmitWithoutResume = async () => {
+    setResumeFile(null)
+
+    try {
+      setIsSubmitting(true)
+      const supabase = createSupabaseClient()
+
+      // Submit application without resume
+      const applicationData = {
+        position_id: position.id,
+        first_name: formData.firstName,
+        last_name: formData.lastName,
+        email: formData.email,
+        phone: formData.phone || null,
+        linkedin_url: formData.linkedinUrl || null,
+        portfolio_url: formData.portfolioUrl || null,
+        cover_letter: formData.coverLetter || null,
+        resume_url: null,
         experience_years: formData.experienceYears ? Number.parseInt(formData.experienceYears) : null,
         current_company: formData.currentCompany || null,
         current_position: formData.currentPosition || null,
@@ -378,7 +513,7 @@ export default function JobApplicationForm({ position, onClose }: JobApplication
               <h3 className="text-lg font-semibold text-foreground">Resume</h3>
               <div>
                 <Label htmlFor="resume" className="text-foreground">
-                  Upload Resume (PDF or Word)
+                  Upload Resume (PDF or Word) - Optional
                 </Label>
                 <div className="mt-1">
                   <input
@@ -401,6 +536,15 @@ export default function JobApplicationForm({ position, onClose }: JobApplication
                     <div className="flex items-center mt-2 text-sm text-muted-foreground">
                       <FileText className="h-4 w-4 mr-1" />
                       {resumeFile.name} ({(resumeFile.size / 1024 / 1024).toFixed(2)} MB)
+                    </div>
+                  )}
+
+                  {uploadProgress > 0 && uploadProgress < 100 && (
+                    <div className="mt-2">
+                      <div className="h-2 bg-secondary rounded-full overflow-hidden">
+                        <div className="h-full bg-primary" style={{ width: `${uploadProgress}%` }}></div>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">Uploading: {uploadProgress}%</p>
                     </div>
                   )}
                 </div>
@@ -431,20 +575,38 @@ export default function JobApplicationForm({ position, onClose }: JobApplication
               <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
                 Cancel
               </Button>
-              <Button
-                type="submit"
-                disabled={isSubmitting}
-                className="bg-primary text-primary-foreground hover:bg-primary/90"
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Submitting...
-                  </>
-                ) : (
-                  "Submit Application"
-                )}
-              </Button>
+              {resumeFile ? (
+                <Button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="bg-primary text-primary-foreground hover:bg-primary/90"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Submitting...
+                    </>
+                  ) : (
+                    "Submit Application"
+                  )}
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  onClick={handleSubmitWithoutResume}
+                  disabled={isSubmitting}
+                  className="bg-primary text-primary-foreground hover:bg-primary/90"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Submitting...
+                    </>
+                  ) : (
+                    "Submit Without Resume"
+                  )}
+                </Button>
+              )}
             </div>
           </form>
         </CardContent>
