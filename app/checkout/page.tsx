@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Shield, ArrowLeft, Package, Trash2 } from "lucide-react"
+import { Shield, ArrowLeft, Package, Trash2, RefreshCcw, ShoppingCart } from "lucide-react"
 import Link from "next/link"
 import { motion } from "framer-motion"
 import { useAuth } from "@/hooks/useAuth"
@@ -20,6 +20,9 @@ export default function CheckoutPage() {
   const { items, updateQuantity, removeFromCart, getTotalItems, getTotalPrice, getTotalSavings, clearCart } = useCart()
   const [isProcessing, setIsProcessing] = useState(false)
   const [authChecked, setAuthChecked] = useState(false)
+  const [redirectTimeout, setRedirectTimeout] = useState<NodeJS.Timeout | null>(null)
+  const [redirectAttempts, setRedirectAttempts] = useState(0)
+  const [forceShow, setForceShow] = useState(false)
   const [billingInfo, setBillingInfo] = useState({
     firstName: "",
     lastName: "",
@@ -47,20 +50,53 @@ export default function CheckoutPage() {
 
   // Check authentication and cart after auth is loaded
   useEffect(() => {
+    // Clear any existing timeout to prevent multiple redirects
+    if (redirectTimeout) {
+      clearTimeout(redirectTimeout)
+    }
+
+    // Skip checks if we're forcing the page to show
+    if (forceShow) {
+      return
+    }
+
+    // Only proceed if auth is loaded and we've checked auth
     if (!authLoading && authChecked) {
       // Redirect to auth if not logged in
       if (!user) {
-        router.push("/auth?redirect=checkout")
+        console.log("No user found, redirecting to auth")
+        const timeout = setTimeout(() => {
+          router.push("/auth?redirect=checkout")
+        }, 1000)
+        setRedirectTimeout(timeout)
+        setRedirectAttempts((prev) => prev + 1)
         return
       }
 
-      // Redirect to store if cart is empty
+      // Redirect to store if cart is empty and we've loaded cart items
       if (items.length === 0) {
-        router.push("/store")
-        return
+        // Check localStorage as a backup
+        const storedItems = localStorage.getItem("cart_items")
+        if (!storedItems || JSON.parse(storedItems).length === 0) {
+          console.log("Cart is empty, redirecting to store")
+          const timeout = setTimeout(() => {
+            router.push("/store")
+          }, 1000)
+          setRedirectTimeout(timeout)
+          setRedirectAttempts((prev) => prev + 1)
+          return
+        }
       }
     }
-  }, [authLoading, authChecked, user, items.length, router])
+  }, [authLoading, authChecked, user, items.length, router, redirectTimeout, forceShow])
+
+  // Safety mechanism to prevent infinite redirects
+  useEffect(() => {
+    if (redirectAttempts > 3) {
+      console.log("Too many redirect attempts, forcing page to show")
+      setForceShow(true)
+    }
+  }, [redirectAttempts])
 
   const handleInputChange = (field: string, value: string) => {
     setBillingInfo((prev) => ({ ...prev, [field]: value }))
@@ -138,8 +174,18 @@ export default function CheckoutPage() {
     }
   }
 
+  // Force show the checkout page even if conditions aren't met
+  const handleForceShow = () => {
+    setForceShow(true)
+  }
+
+  // Refresh the page to try again
+  const handleRefresh = () => {
+    window.location.reload()
+  }
+
   // Show loading while auth is being checked
-  if (authLoading || !authChecked) {
+  if (authLoading) {
     return (
       <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
         <div className="text-center">
@@ -151,56 +197,34 @@ export default function CheckoutPage() {
   }
 
   // Show loading if redirecting (but this should be brief)
-  if (!user || items.length === 0) {
+  if (!forceShow && (!user || (items.length === 0 && redirectAttempts <= 3))) {
     return (
       <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
         <div className="text-center">
           <h1 className="text-2xl font-bold mb-4">Redirecting...</h1>
-          <p className="text-muted-foreground">Taking you to the right place...</p>
+          <p className="text-muted-foreground mb-8">Taking you to the right place...</p>
+
+          <div className="flex flex-col items-center gap-4">
+            <Button onClick={handleRefresh} variant="outline" className="flex items-center gap-2">
+              <RefreshCcw className="h-4 w-4" />
+              Refresh Page
+            </Button>
+
+            <Button onClick={handleForceShow} className="flex items-center gap-2">
+              <ShoppingCart className="h-4 w-4" />
+              Continue to Checkout Anyway
+            </Button>
+
+            <div className="mt-4 text-sm text-muted-foreground">
+              If you keep seeing this message, click "Continue to Checkout Anyway"
+            </div>
+          </div>
         </div>
       </div>
     )
   }
 
-  const products = {
-    "ai-training-basic": {
-      id: "ai-training-basic",
-      title: "AI Training - Basic Package",
-      description: "Get started with AI model training for your business data",
-      price: 45000,
-    },
-    "ai-training-pro": {
-      id: "ai-training-pro",
-      title: "AI Training - Professional",
-      description: "Advanced AI solutions with custom algorithms and optimization",
-      price: 90000,
-    },
-    "app-development": {
-      id: "app-development",
-      title: "Custom App Development",
-      description: "Full-stack application with AI integration",
-      price: 75000,
-    },
-    "marketing-ai": {
-      id: "marketing-ai",
-      title: "Digital Marketing AI Suite",
-      description: "AI-powered marketing automation and analytics",
-      price: 30000,
-    },
-    "ai-consultation": {
-      id: "ai-consultation",
-      title: "AI Strategy Consultation",
-      description: "1-on-1 consultation to plan your AI implementation",
-      price: 7500,
-    },
-    "ai-templates": {
-      id: "ai-templates",
-      title: "AI Model Templates Pack",
-      description: "Pre-built AI models for common business use cases",
-      price: 4500,
-    },
-  }
-
+  // If we're forcing the page to show or all conditions are met, show the checkout
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* Navigation */}
@@ -219,7 +243,7 @@ export default function CheckoutPage() {
                 Back to Store
               </Link>
               <span className="text-sm text-muted-foreground">
-                Welcome, {user.user_metadata?.full_name || user.email}
+                Welcome, {user?.user_metadata?.full_name || user?.email || "Guest"}
               </span>
             </div>
           </div>
@@ -253,52 +277,65 @@ export default function CheckoutPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {items.map((item) => (
-                  <div
-                    key={item.id}
-                    className="flex items-center justify-between p-3 bg-secondary/50 rounded-lg border border-border"
-                  >
-                    <div className="flex-1">
-                      <h4 className="font-semibold text-foreground text-sm">{item.title}</h4>
-                      <p className="text-xs text-muted-foreground">{item.category}</p>
-                      <div className="flex items-center space-x-2 mt-1">
-                        <span className="text-primary font-bold">R{item.price}</span>
-                        {item.originalPrice > item.price && (
-                          <span className="text-xs text-muted-foreground line-through">R{item.originalPrice}</span>
-                        )}
-                        <span className="text-xs text-muted-foreground">x {item.quantity}</span>
+                {items.length > 0 ? (
+                  items.map((item) => (
+                    <div
+                      key={item.id}
+                      className="flex items-center justify-between p-3 bg-secondary/50 rounded-lg border border-border"
+                    >
+                      <div className="flex-1">
+                        <h4 className="font-semibold text-foreground text-sm">{item.title}</h4>
+                        <p className="text-xs text-muted-foreground">{item.category}</p>
+                        <div className="flex items-center space-x-2 mt-1">
+                          <span className="text-primary font-bold">R{item.price}</span>
+                          {item.originalPrice > item.price && (
+                            <span className="text-xs text-muted-foreground line-through">R{item.originalPrice}</span>
+                          )}
+                          <span className="text-xs text-muted-foreground">x {item.quantity}</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <span className="text-primary font-bold">R{(item.price * item.quantity).toFixed(2)}</span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeFromCart(item.id)}
+                          className="text-destructive hover:text-destructive/80 hover:bg-destructive/10 h-8 w-8 p-0"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
                       </div>
                     </div>
-                    <div className="flex items-center space-x-2">
-                      <span className="text-primary font-bold">R{(item.price * item.quantity).toFixed(2)}</span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeFromCart(item.id)}
-                        className="text-destructive hover:text-destructive/80 hover:bg-destructive/10 h-8 w-8 p-0"
-                      >
-                        <Trash2 className="h-3 w-3" />
+                  ))
+                ) : (
+                  <div className="text-center py-6">
+                    <p className="text-muted-foreground">Your cart is empty</p>
+                    <Link href="/store">
+                      <Button variant="outline" className="mt-4">
+                        Browse Products
                       </Button>
-                    </div>
+                    </Link>
                   </div>
-                ))}
+                )}
 
-                <div className="border-t border-border pt-4 space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Subtotal ({getTotalItems()} items)</span>
-                    <span className="text-foreground">R{getTotalPrice().toFixed(2)}</span>
-                  </div>
-                  {getTotalSavings() > 0 && (
+                {items.length > 0 && (
+                  <div className="border-t border-border pt-4 space-y-2">
                     <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">You save</span>
-                      <span className="text-primary">-R{getTotalSavings().toFixed(2)}</span>
+                      <span className="text-muted-foreground">Subtotal ({getTotalItems()} items)</span>
+                      <span className="text-foreground">R{getTotalPrice().toFixed(2)}</span>
                     </div>
-                  )}
-                  <div className="flex justify-between text-lg font-bold border-t border-border pt-2">
-                    <span className="text-foreground">Total</span>
-                    <span className="text-primary">R{getTotalPrice().toFixed(2)}</span>
+                    {getTotalSavings() > 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">You save</span>
+                        <span className="text-primary">-R{getTotalSavings().toFixed(2)}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between text-lg font-bold border-t border-border pt-2">
+                      <span className="text-foreground">Total</span>
+                      <span className="text-primary">R{getTotalPrice().toFixed(2)}</span>
+                    </div>
                   </div>
-                </div>
+                )}
               </CardContent>
             </Card>
           </motion.div>
@@ -463,7 +500,7 @@ export default function CheckoutPage() {
                 <div className="space-y-3">
                   <Button
                     onClick={handlePayFastPayment}
-                    disabled={isProcessing}
+                    disabled={isProcessing || items.length === 0}
                     className="w-full bg-primary text-primary-foreground hover:bg-primary/90 text-lg py-4"
                   >
                     {isProcessing ? "Processing..." : "Complete Payment"}
