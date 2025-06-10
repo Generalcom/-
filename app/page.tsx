@@ -494,7 +494,7 @@ export default function HomePage() {
                   </Link>
                 </li>
                 <li>
-                  <Link href="/terms-of-service" className="text-muted-foreground hover:text-primary transition-colors">
+                  <Link href="/terms" className="text-muted-foreground hover:text-primary transition-colors">
                     Terms of Service
                   </Link>
                 </li>
