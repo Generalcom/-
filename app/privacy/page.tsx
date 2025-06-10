@@ -216,7 +216,7 @@ export default function PrivacyPolicyPage() {
                   <p className="text-muted-foreground">Email: support@vort.co.za</p>
                   <p className="text-muted-foreground">Phone: 011 766 3892</p>
                   <p className="text-muted-foreground">
-                    Address: 132 Corner Lovaday and Fox Street, Marshall, South Africa
+                    Address: 132 Corner Loeaday and Fox Street, Marshall Town, South Africa
                   </p>
                 </div>
               </section>
