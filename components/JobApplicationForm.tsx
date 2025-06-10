@@ -189,6 +189,32 @@ export default function JobApplicationForm({ position, onClose }: JobApplication
     }
   }
 
+  // Function to send confirmation email
+  const sendConfirmationEmail = async () => {
+    try {
+      const response = await fetch("/api/send-application-email", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          email: formData.email,
+          position: position.title,
+        }),
+      })
+
+      if (!response.ok) {
+        console.error("Failed to send confirmation email")
+        // Don't block the application process if email fails
+      }
+    } catch (error) {
+      console.error("Error sending confirmation email:", error)
+      // Don't block the application process if email fails
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSubmitting(true)
@@ -241,6 +267,9 @@ export default function JobApplicationForm({ position, onClose }: JobApplication
         })
         return
       }
+
+      // Send confirmation email
+      await sendConfirmationEmail()
 
       toast({
         title: "Application submitted!",
@@ -297,6 +326,9 @@ export default function JobApplicationForm({ position, onClose }: JobApplication
         })
         return
       }
+
+      // Send confirmation email
+      await sendConfirmationEmail()
 
       toast({
         title: "Application submitted!",
