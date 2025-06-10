@@ -15,13 +15,18 @@ export function AuthCallbackClient() {
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { user, isAdmin } = useAuth()
+  const { sessionLoaded, user, isAdmin } = useAuth()
   const supabase = getSupabaseClient()
 
   useEffect(() => {
+    // Don't do anything until the auth session is loaded
+    if (!sessionLoaded) {
+      console.log("Waiting for session to load...")
+      return
+    }
+
     const handleAuthCallback = async () => {
       try {
-        // Check if we have the authorization code from the URL
         const code = searchParams.get("code")
         const error_code = searchParams.get("error")
         const error_description = searchParams.get("error_description")
@@ -61,44 +66,20 @@ export function AuthCallbackClient() {
 
         console.log("Session created successfully:", data.session.user.email)
 
-        // Check if user has a profile, create one if needed
-        const { data: profile, error: profileError } = await supabase
-          .from("profiles")
-          .select("*")
-          .eq("id", data.session.user.id)
-          .single()
-
-        if (profileError && profileError.code === "PGRST116") {
-          // Profile doesn't exist, create one
-          console.log("Creating profile for new user")
-
-          const { error: insertError } = await supabase.from("profiles").insert([
-            {
-              id: data.session.user.id,
-              email: data.session.user.email,
-              full_name: data.session.user.user_metadata?.full_name || data.session.user.user_metadata?.name || "User",
-              avatar_url: data.session.user.user_metadata?.avatar_url || null,
-              role: data.session.user.email === "support@vort.co.za" ? "admin" : "user",
-            },
-          ])
-
-          if (insertError) {
-            console.error("Error creating profile:", insertError)
-            // Continue anyway, profile will be created later
-          }
-        }
+        // Wait for the auth context to update
+        await new Promise((resolve) => setTimeout(resolve, 1000))
 
         setState("success")
 
-        // Wait a moment to show success state, then redirect
+        // Wait a bit more before redirect
         setTimeout(() => {
-          // Determine redirect destination based on user role
+          // Use window.location for reliable redirect
           if (data.session.user.email === "support@vort.co.za") {
             console.log("Redirecting admin to admin dashboard")
-            router.push("/admin")
+            window.location.href = "/admin"
           } else {
             console.log("Redirecting user to dashboard")
-            router.push("/dashboard")
+            window.location.href = "/dashboard"
           }
         }, 1500)
       } catch (err) {
@@ -109,22 +90,42 @@ export function AuthCallbackClient() {
     }
 
     handleAuthCallback()
-  }, [searchParams, supabase, router])
+  }, [searchParams, supabase, sessionLoaded])
+
+  // Show loading while waiting for session
+  if (!sessionLoaded) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+        <Card className="w-full max-w-md">
+          <CardContent className="p-8">
+            <div className="text-center space-y-6">
+              <div className="flex justify-center">
+                <Loader2 className="h-12 w-12 animate-spin text-blue-600" />
+              </div>
+              <div className="space-y-2">
+                <h2 className="text-xl font-semibold text-gray-900">Loading Session</h2>
+                <p className="text-gray-600">Please wait while we check your authentication status...</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
 
   // Handle retry
   const handleRetry = () => {
     setState("loading")
     setError(null)
-    // Trigger the effect again by refreshing the page
     window.location.reload()
   }
 
   // Handle manual redirect
   const handleManualRedirect = () => {
-    if (user?.email === "support@vort.co.za") {
-      router.push("/admin")
+    if (user?.email === "support@vort.co.za" || isAdmin) {
+      window.location.href = "/admin"
     } else {
-      router.push("/dashboard")
+      window.location.href = "/dashboard"
     }
   }
 
@@ -173,7 +174,7 @@ export function AuthCallbackClient() {
                   <Button onClick={handleRetry} className="w-full">
                     Try Again
                   </Button>
-                  <Button variant="outline" onClick={() => router.push("/auth")} className="w-full">
+                  <Button variant="outline" onClick={() => (window.location.href = "/auth")} className="w-full">
                     Back to Sign In
                   </Button>
                   {user && (

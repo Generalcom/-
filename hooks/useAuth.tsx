@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { createContext, useContext, useEffect, useState } from "react"
+import { createContext, useContext, useEffect, useState, useRef } from "react"
 import type { User } from "@supabase/supabase-js"
 import { getSupabaseClient } from "@/lib/supabase"
 
@@ -20,6 +20,7 @@ interface AuthContextType {
   user: User | null
   profile: Profile | null
   loading: boolean
+  sessionLoaded: boolean
   error: Error | null
   signIn: (email: string, password: string) => Promise<{ error: any }>
   signUp: (email: string, password: string, fullName: string) => Promise<{ error: any }>
@@ -37,337 +38,309 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
+  const [sessionLoaded, setSessionLoaded] = useState(false)
   const [error, setError] = useState<Error | null>(null)
-  const [retryCount, setRetryCount] = useState(0)
   const [offlineMode, setOfflineMode] = useState(false)
-  const supabase = getSupabaseClient()
+  const [supabaseClient] = useState(() => {
+    try {
+      return getSupabaseClient()
+    } catch (err) {
+      console.error("Failed to initialize Supabase client:", err)
+      return null
+    }
+  })
 
-  // Admin detection - check email first, then role if profile is available
+  // Use refs to prevent multiple listeners
+  const authListenerRef = useRef<any>(null)
+  const initializingRef = useRef(false)
+
+  // Admin detection - prioritize email check, fallback to profile role
   const isAdmin = user?.email === "support@vort.co.za" || profile?.role === "admin"
 
   // Function to retry connection
   const retryConnection = () => {
     setError(null)
     setOfflineMode(false)
-    setRetryCount((prev) => prev + 1)
+    setLoading(true)
+    setSessionLoaded(false)
+    initializeAuth()
   }
 
-  // Check if we're online
-  useEffect(() => {
-    const handleOnline = () => {
-      setOfflineMode(false)
-      // Retry fetching profile when coming back online
-      if (user && !profile) {
-        fetchProfile(user.id).catch(console.error)
-      }
+  // Check if error indicates network issues
+  const isNetworkError = (error: any): boolean => {
+    if (!error) return false
+    const errorMessage = error.message || error.toString()
+    const networkErrorPatterns = [
+      "Failed to fetch",
+      "fetch",
+      "timeout",
+      "Network request failed",
+      "ERR_NETWORK",
+      "ERR_INTERNET_DISCONNECTED",
+      "Connection failed",
+      "Unable to connect",
+    ]
+    return networkErrorPatterns.some((pattern) => errorMessage.toLowerCase().includes(pattern.toLowerCase()))
+  }
+
+  const createProfileFromUser = (user: User): Profile => {
+    return {
+      id: user.id,
+      email: user.email || "",
+      full_name: user.user_metadata?.full_name || user.user_metadata?.name || "User",
+      avatar_url: user.user_metadata?.avatar_url || null,
+      role: user.email === "support@vort.co.za" ? "admin" : "user",
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
     }
-    const handleOffline = () => setOfflineMode(true)
+  }
 
-    window.addEventListener("online", handleOnline)
-    window.addEventListener("offline", handleOffline)
-
-    // Initial check
-    setOfflineMode(!navigator.onLine)
-
-    return () => {
-      window.removeEventListener("online", handleOnline)
-      window.removeEventListener("offline", handleOffline)
-    }
-  }, [user, profile])
-
-  useEffect(() => {
-    if (!supabase) {
-      console.warn("Supabase client not available, using offline mode")
-      setOfflineMode(true)
-      setLoading(false)
-      return
-    }
-
-    const initAuth = async () => {
-      try {
-        // Get initial session with timeout
-        const sessionPromise = supabase.auth.getSession()
-        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Session timeout")), 10000))
-
-        const { data: sessionData, error: sessionError } = (await Promise.race([sessionPromise, timeoutPromise])) as any
-
-        if (sessionError) {
-          console.error("Session error:", sessionError)
-          if (sessionError.message.includes("fetch") || sessionError.message.includes("timeout")) {
-            setOfflineMode(true)
-          }
-          setError(sessionError)
-          setLoading(false)
-          return
-        }
-
-        const session = sessionData.session
-        setUser(session?.user ?? null)
-
-        if (session?.user) {
-          // Don't await profile fetch to avoid blocking
-          fetchProfile(session.user.id).catch((err) => {
-            console.error("Error fetching profile during init:", err)
-          })
-        }
-      } catch (err) {
-        console.error("Auth initialization error:", err)
-        if (err instanceof Error && (err.message.includes("fetch") || err.message.includes("timeout"))) {
-          setOfflineMode(true)
-        }
-        setError(err instanceof Error ? err : new Error("Unknown authentication error"))
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    initAuth()
-
-    // Listen for auth changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
-      try {
-        console.log("Auth state change:", event, session?.user?.email)
-        setUser(session?.user ?? null)
-
-        if (session?.user) {
-          // Don't await profile fetch to avoid blocking
-          fetchProfile(session.user.id).catch((err) => {
-            console.error("Error fetching profile on auth change:", err)
-          })
-        } else {
-          setProfile(null)
-        }
-      } catch (err) {
-        console.error("Auth state change error:", err)
-      }
-    })
-
-    return () => subscription.unsubscribe()
-  }, [supabase, retryCount])
-
-  const fetchProfile = async (userId: string) => {
-    if (!supabase || offlineMode) {
-      // In offline mode, create a fake profile for admin
-      if (user?.email === "support@vort.co.za") {
-        setProfile({
-          id: userId,
-          email: "support@vort.co.za",
-          full_name: "System Administrator (Offline)",
-          avatar_url: null,
-          role: "admin",
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        })
-      } else if (user?.email) {
-        // Create a basic user profile for offline mode
-        setProfile({
-          id: userId,
-          email: user.email,
-          full_name: user.user_metadata?.full_name || "User",
-          avatar_url: null,
-          role: "user",
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        })
-      }
+  const fetchProfile = async (userId: string, userEmail?: string) => {
+    // Don't block auth flow if Supabase client is not available
+    if (!supabaseClient) {
+      console.log("No Supabase client available, skipping profile fetch")
       return
     }
 
     try {
-      console.log("Fetching profile for user:", userId)
+      console.log("Attempting to fetch profile for user:", userId)
 
-      // Add timeout to profile fetch
-      const profilePromise = supabase.from("profiles").select("*").eq("id", userId).single()
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error("Profile fetch timeout")), 8000),
-      )
+      // Add a shorter timeout for profile fetch
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 3000) // 3 second timeout
 
-      const { data, error } = (await Promise.race([profilePromise, timeoutPromise])) as any
+      const { data, error } = await supabaseClient
+        .from("profiles")
+        .select("*")
+        .eq("id", userId)
+        .abortSignal(controller.signal)
+        .single()
+
+      clearTimeout(timeoutId)
 
       if (error) {
-        console.error("Profile fetch error:", error)
+        console.log("Profile fetch error (non-blocking):", error.message)
 
-        // Handle network errors
-        if (
-          error.message?.includes("fetch") ||
-          error.message?.includes("timeout") ||
-          error.message?.includes("Failed to fetch")
-        ) {
-          console.log("Network error detected, switching to offline mode")
+        // Don't treat profile fetch errors as critical
+        if (isNetworkError(error)) {
+          console.log("Network error during profile fetch - continuing without profile")
           setOfflineMode(true)
-
-          // Create fallback profile
-          const fallbackProfile = {
-            id: userId,
-            email: user?.email || "",
-            full_name:
-              user?.user_metadata?.full_name ||
-              (user?.email === "support@vort.co.za" ? "System Administrator" : "User"),
-            avatar_url: null,
-            role: user?.email === "support@vort.co.za" ? "admin" : "user",
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          }
-          setProfile(fallbackProfile)
-          return
         }
 
-        // If profile doesn't exist, create it
-        if (error.code === "PGRST116") {
-          try {
-            const { data: userData } = await supabase.auth.getUser()
-
-            if (userData.user?.email === "support@vort.co.za") {
-              console.log("Creating admin profile...")
-              await createAdminProfile(userId, userData.user.email)
-            } else {
-              // Create regular user profile
-              const { error: insertError } = await supabase.from("profiles").insert([
-                {
-                  id: userId,
-                  email: userData.user?.email,
-                  full_name: userData.user?.user_metadata?.full_name || "User",
-                  role: "user",
-                },
-              ])
-
-              if (insertError) {
-                console.error("Error creating user profile:", insertError)
-                // Create a temporary profile object
-                setProfile({
-                  id: userId,
-                  email: userData.user?.email || "",
-                  full_name: userData.user?.user_metadata?.full_name || "User",
-                  avatar_url: null,
-                  role: "user",
-                  created_at: new Date().toISOString(),
-                  updated_at: new Date().toISOString(),
-                })
-              } else {
-                // Fetch the newly created profile
-                const { data: newProfile } = await supabase.from("profiles").select("*").eq("id", userId).single()
-                if (newProfile) setProfile(newProfile)
-              }
-            }
-          } catch (err) {
-            console.error("Error in profile creation flow:", err)
-            // Create a fallback profile based on user email
-            const fallbackProfile = {
-              id: userId,
-              email: user?.email || "",
-              full_name:
-                user?.user_metadata?.full_name ||
-                (user?.email === "support@vort.co.za" ? "System Administrator" : "User"),
-              avatar_url: null,
-              role: user?.email === "support@vort.co.za" ? "admin" : "user",
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-            }
-            setProfile(fallbackProfile)
-          }
-        } else {
-          // For other errors, create a fallback profile
-          const fallbackProfile = {
-            id: userId,
-            email: user?.email || "",
-            full_name:
-              user?.user_metadata?.full_name ||
-              (user?.email === "support@vort.co.za" ? "System Administrator" : "User"),
-            avatar_url: null,
-            role: user?.email === "support@vort.co.za" ? "admin" : "user",
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          }
-          setProfile(fallbackProfile)
+        // If profile doesn't exist, try to create it (but don't block on this)
+        if (error.code === "PGRST116" && userEmail) {
+          console.log("Profile doesn't exist, attempting to create (non-blocking)")
+          createProfileAsync(userId, userEmail).catch((err) => {
+            console.log("Profile creation failed (non-blocking):", err.message)
+          })
         }
-      } else if (data) {
-        console.log("Profile loaded:", data)
+
+        return // Don't block auth flow
+      }
+
+      if (data) {
+        console.log("Profile loaded successfully:", data.email)
         setProfile(data)
       }
     } catch (err) {
-      console.error("Error fetching profile:", err)
+      console.log("Profile fetch exception (non-blocking):", err instanceof Error ? err.message : "Unknown error")
 
-      // Create a fallback profile for any user
-      const fallbackProfile = {
-        id: userId,
-        email: user?.email || "",
-        full_name:
-          user?.user_metadata?.full_name || (user?.email === "support@vort.co.za" ? "System Administrator" : "User"),
-        avatar_url: null,
-        role: user?.email === "support@vort.co.za" ? "admin" : "user",
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      }
-
-      setProfile(fallbackProfile)
-
-      // Check if it's a network error and set offline mode
-      if (
-        err instanceof Error &&
-        (err.message.includes("fetch") || err.message.includes("timeout") || err.message.includes("Failed to fetch"))
-      ) {
-        console.log("Network error in catch block, switching to offline mode")
+      if (isNetworkError(err)) {
+        console.log("Network error in profile fetch - continuing without profile")
         setOfflineMode(true)
       }
+
+      // Don't block auth flow for profile errors
+      return
     }
   }
 
-  const createAdminProfile = async (userId: string, email: string) => {
-    if (!supabase || offlineMode) return
+  const createProfileAsync = async (userId: string, userEmail: string) => {
+    if (!supabaseClient) return
 
     try {
-      const { data, error } = await supabase
+      const role = userEmail === "support@vort.co.za" ? "admin" : "user"
+      const fullName =
+        userEmail === "support@vort.co.za" ? "System Administrator" : user?.user_metadata?.full_name || "User"
+
+      const { data: newProfile, error: insertError } = await supabaseClient
         .from("profiles")
         .insert([
           {
             id: userId,
-            email: email,
-            full_name: "System Administrator",
-            role: "admin",
+            email: userEmail,
+            full_name: fullName,
+            role: role,
           },
         ])
         .select()
         .single()
 
-      if (error) {
-        console.error("Error creating admin profile:", error)
-        // Create a fallback profile
-        setProfile({
-          id: userId,
-          email: email,
-          full_name: "System Administrator (Fallback)",
-          avatar_url: null,
-          role: "admin",
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        })
-      } else if (data) {
-        setProfile(data)
+      if (insertError) {
+        console.log("Profile creation error (non-blocking):", insertError.message)
+        return
       }
-    } catch (error) {
-      console.error("Exception creating admin profile:", error)
-      // Create a fallback profile
-      setProfile({
-        id: userId,
-        email: email,
-        full_name: "System Administrator (Fallback)",
-        avatar_url: null,
-        role: "admin",
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      })
+
+      if (newProfile) {
+        console.log("Profile created successfully")
+        setProfile(newProfile)
+      }
+    } catch (err) {
+      console.log("Profile creation exception (non-blocking):", err instanceof Error ? err.message : "Unknown error")
     }
   }
 
+  const initializeAuth = async () => {
+    if (initializingRef.current) {
+      console.log("Auth already initializing, skipping...")
+      return
+    }
+
+    initializingRef.current = true
+    console.log("Initializing authentication...")
+
+    try {
+      if (!supabaseClient) {
+        console.log("No Supabase client - auth will work in limited mode")
+        setSessionLoaded(true)
+        setLoading(false)
+        return
+      }
+
+      // Get initial session
+      console.log("Getting initial session...")
+      const { data: sessionData, error: sessionError } = await supabaseClient.auth.getSession()
+
+      if (sessionError) {
+        console.error("Session error:", sessionError)
+        if (isNetworkError(sessionError)) {
+          console.log("Network error during session fetch")
+          setOfflineMode(true)
+        } else {
+          setError(sessionError)
+        }
+      } else {
+        const session = sessionData.session
+        console.log("Initial session:", session ? `Found for ${session.user.email}` : "None")
+
+        setUser(session?.user ?? null)
+
+        // If we have a user, try to fetch their profile (non-blocking)
+        if (session?.user) {
+          // Create a basic profile from user data immediately
+          const basicProfile = createProfileFromUser(session.user)
+          setProfile(basicProfile)
+
+          // Then try to fetch the real profile in the background
+          fetchProfile(session.user.id, session.user.email).catch((err) => {
+            console.log("Background profile fetch failed:", err.message)
+          })
+        }
+      }
+
+      // Always mark session as loaded, regardless of profile fetch status
+      setSessionLoaded(true)
+      setLoading(false)
+    } catch (err) {
+      console.error("Auth initialization error:", err)
+      if (isNetworkError(err)) {
+        console.log("Network error during auth initialization")
+        setOfflineMode(true)
+      } else {
+        setError(err instanceof Error ? err : new Error("Unknown authentication error"))
+      }
+      setSessionLoaded(true)
+      setLoading(false)
+    } finally {
+      initializingRef.current = false
+    }
+  }
+
+  // Initialize auth on mount
+  useEffect(() => {
+    initializeAuth()
+  }, [])
+
+  // Set up auth state listener - only once
+  useEffect(() => {
+    if (!supabaseClient || authListenerRef.current) {
+      return
+    }
+
+    console.log("Setting up auth state listener...")
+
+    const {
+      data: { subscription },
+    } = supabaseClient.auth.onAuthStateChange(async (event, session) => {
+      console.log("Auth state change:", event, session?.user?.email || "no user")
+
+      try {
+        setUser(session?.user ?? null)
+
+        if (session?.user) {
+          // Create basic profile immediately
+          const basicProfile = createProfileFromUser(session.user)
+          setProfile(basicProfile)
+
+          // Try to fetch real profile in background
+          fetchProfile(session.user.id, session.user.email).catch((err) => {
+            console.log("Background profile fetch failed on auth change:", err.message)
+          })
+        } else {
+          setProfile(null)
+        }
+      } catch (err) {
+        console.error("Error handling auth state change:", err)
+        if (isNetworkError(err)) {
+          setOfflineMode(true)
+        }
+      }
+    })
+
+    authListenerRef.current = subscription
+
+    return () => {
+      if (authListenerRef.current) {
+        authListenerRef.current.unsubscribe()
+        authListenerRef.current = null
+      }
+    }
+  }, [supabaseClient])
+
+  // Network status detection
+  useEffect(() => {
+    const handleOnline = () => {
+      console.log("Network came back online")
+      if (offlineMode) {
+        setOfflineMode(false)
+        retryConnection()
+      }
+    }
+
+    const handleOffline = () => {
+      console.log("Network went offline")
+      setOfflineMode(true)
+    }
+
+    if (typeof window !== "undefined") {
+      window.addEventListener("online", handleOnline)
+      window.addEventListener("offline", handleOffline)
+    }
+
+    return () => {
+      if (typeof window !== "undefined") {
+        window.removeEventListener("online", handleOnline)
+        window.removeEventListener("offline", handleOffline)
+      }
+    }
+  }, [offlineMode])
+
   const createAdminUser = async () => {
-    if (!supabase) return { success: false, error: "Supabase client not available" }
+    if (!supabaseClient) return { success: false, error: "Supabase client not available" }
     if (offlineMode) return { success: false, error: "Cannot create admin user in offline mode" }
 
     try {
-      // Try to sign up the admin user
-      const { data, error } = await supabase.auth.signUp({
+      const { data, error } = await supabaseClient.auth.signUp({
         email: "support@vort.co.za",
         password: "Junior@2003",
         options: {
@@ -378,70 +351,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       })
 
       if (error && error.message.includes("already registered")) {
-        // User already exists, that's fine
         return { success: true }
       }
 
       if (!error && data.user) {
-        // Create admin profile
-        await supabase.from("profiles").insert([
-          {
-            id: data.user.id,
-            email: "support@vort.co.za",
-            full_name: "System Administrator",
-            role: "admin",
-          },
-        ])
+        // Try to create profile, but don't fail if it doesn't work
+        createProfileAsync(data.user.id, "support@vort.co.za").catch(console.log)
         return { success: true }
       }
 
       return { success: false, error }
     } catch (error) {
+      if (isNetworkError(error)) {
+        setOfflineMode(true)
+      }
       return { success: false, error }
     }
   }
 
   const signIn = async (email: string, password: string) => {
-    if (!supabase) return { error: new Error("Supabase client not available") }
-    if (offlineMode) {
-      // Special case for admin in offline mode
-      if (email === "support@vort.co.za" && password === "Junior@2003") {
-        // Create a mock user and profile
-        const mockUser = {
-          id: "offline-admin-id",
-          email: "support@vort.co.za",
-          user_metadata: { full_name: "System Administrator (Offline)" },
-        } as User
-
-        setUser(mockUser)
-        setProfile({
-          id: "offline-admin-id",
-          email: "support@vort.co.za",
-          full_name: "System Administrator (Offline)",
-          avatar_url: null,
-          role: "admin",
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        })
-
-        return { error: null }
-      }
-      return { error: new Error("Cannot sign in while offline") }
-    }
+    if (!supabaseClient) return { error: new Error("Authentication client not available") }
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      console.log("Attempting to sign in:", email)
+
+      const { data, error } = await supabaseClient.auth.signInWithPassword({
         email,
         password,
       })
 
-      // If there's a network error, switch to offline mode
-      if (error && (error.message.includes("fetch") || error.message.includes("Failed to fetch"))) {
+      if (error && isNetworkError(error)) {
+        console.log("Network error during sign in")
         setOfflineMode(true)
 
-        // Special case for admin
+        // Special offline mode for admin
         if (email === "support@vort.co.za" && password === "Junior@2003") {
-          // Create a mock user and profile
           const mockUser = {
             id: "offline-admin-id",
             email: "support@vort.co.za",
@@ -449,16 +393,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           } as User
 
           setUser(mockUser)
-          setProfile({
-            id: "offline-admin-id",
-            email: "support@vort.co.za",
-            full_name: "System Administrator (Offline)",
-            avatar_url: null,
-            role: "admin",
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          })
-
+          setProfile(createProfileFromUser(mockUser))
           return { error: null }
         }
       }
@@ -466,45 +401,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { error }
     } catch (err) {
       console.error("Sign in error:", err)
-
-      // Check if it's a network error
-      if (err instanceof Error && (err.message.includes("fetch") || err.message.includes("Failed to fetch"))) {
+      if (isNetworkError(err)) {
         setOfflineMode(true)
-
-        // Special case for admin
-        if (email === "support@vort.co.za" && password === "Junior@2003") {
-          // Create a mock user and profile
-          const mockUser = {
-            id: "offline-admin-id",
-            email: "support@vort.co.za",
-            user_metadata: { full_name: "System Administrator (Offline)" },
-          } as User
-
-          setUser(mockUser)
-          setProfile({
-            id: "offline-admin-id",
-            email: "support@vort.co.za",
-            full_name: "System Administrator (Offline)",
-            avatar_url: null,
-            role: "admin",
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          })
-
-          return { error: null }
-        }
       }
-
       return { error: err instanceof Error ? err : new Error("Failed to sign in") }
     }
   }
 
   const signUp = async (email: string, password: string, fullName: string) => {
-    if (!supabase) return { error: new Error("Supabase client not available") }
+    if (!supabaseClient) return { error: new Error("Authentication client not available") }
     if (offlineMode) return { error: new Error("Cannot sign up while offline") }
 
     try {
-      const { data, error } = await supabase.auth.signUp({
+      const { data, error } = await supabaseClient.auth.signUp({
         email,
         password,
         options: {
@@ -515,41 +424,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       })
 
       if (!error && data.user) {
-        // Create profile with appropriate role
-        const role = data.user.email === "support@vort.co.za" ? "admin" : "user"
-        const { error: profileError } = await supabase.from("profiles").insert([
-          {
-            id: data.user.id,
-            email: data.user.email,
-            full_name: fullName,
-            role: role,
-          },
-        ])
-
-        if (profileError) {
-          console.error("Error creating profile:", profileError)
-        }
+        // Try to create profile, but don't fail if it doesn't work
+        createProfileAsync(data.user.id, data.user.email || email).catch(console.log)
       }
 
       return { error }
     } catch (err) {
       console.error("Sign up error:", err)
-
-      // Check if it's a network error
-      if (err instanceof Error && (err.message.includes("fetch") || err.message.includes("Failed to fetch"))) {
+      if (isNetworkError(err)) {
         setOfflineMode(true)
       }
-
       return { error: err instanceof Error ? err : new Error("Failed to sign up") }
     }
   }
 
   const signInWithGoogle = async () => {
-    if (!supabase) return { error: new Error("Supabase client not available") }
+    if (!supabaseClient) return { error: new Error("Authentication client not available") }
     if (offlineMode) return { error: new Error("Cannot sign in with Google while offline") }
 
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
+      const { error } = await supabaseClient.auth.signInWithOAuth({
         provider: "google",
         options: {
           redirectTo: `${window.location.origin}/auth/callback`,
@@ -558,38 +452,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { error }
     } catch (err) {
       console.error("Google sign in error:", err)
-
-      // Check if it's a network error
-      if (err instanceof Error && (err.message.includes("fetch") || err.message.includes("Failed to fetch"))) {
+      if (isNetworkError(err)) {
         setOfflineMode(true)
       }
-
       return { error: err instanceof Error ? err : new Error("Failed to sign in with Google") }
     }
   }
 
   const signOut = async () => {
-    if (!supabase) return
-    if (offlineMode) {
-      // Just clear local state
-      setUser(null)
-      setProfile(null)
-      return
-    }
+    if (!supabaseClient) return
 
     try {
-      await supabase.auth.signOut()
+      await supabaseClient.auth.signOut()
       setUser(null)
       setProfile(null)
     } catch (err) {
       console.error("Sign out error:", err)
-
-      // If network error, just clear state
-      if (err instanceof Error && (err.message.includes("fetch") || err.message.includes("Failed to fetch"))) {
-        setOfflineMode(true)
-        setUser(null)
-        setProfile(null)
-      }
+      // Clear state regardless of error
+      setUser(null)
+      setProfile(null)
     }
   }
 
@@ -597,6 +478,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     user,
     profile,
     loading,
+    sessionLoaded,
     error,
     signIn,
     signUp,
