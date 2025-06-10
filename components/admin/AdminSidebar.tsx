@@ -19,6 +19,7 @@ import { useAuth } from "@/hooks/useAuth"
 
 const navigation = [
   { name: "Dashboard", href: "/admin", icon: LayoutDashboard },
+  { name: "Control Panel", href: "/admin/control-panel", icon: Settings },
   { name: "Users", href: "/admin/users", icon: Users },
   { name: "Contacts", href: "/admin/contacts", icon: MessageSquare },
   { name: "Payments", href: "/admin/payments", icon: CreditCard },
