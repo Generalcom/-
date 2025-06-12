@@ -22,19 +22,19 @@ export const metadata: Metadata = {
     address: false,
     telephone: false,
   },
-  metadataBase: new URL("https://vort.ai"),
+  metadataBase: new URL("https://vort.co.za"),
   alternates: {
-    canonical: "/",
+    canonical: "https://vort.co.za",
   },
   openGraph: {
     title: "Vort - AI Solutions & Digital Services | South Africa",
     description:
       "Transform your business with cutting-edge AI solutions, custom app development, and digital marketing services. Professional AI training and consultation in South Africa.",
-    url: "https://vort.ai",
+    url: "https://vort.co.za",
     siteName: "Vort",
     images: [
       {
-        url: "/og-image.png",
+        url: "https://vort.co.za/og-image.png",
         width: 1200,
         height: 630,
         alt: "Vort - AI Solutions & Digital Services",
@@ -48,7 +48,7 @@ export const metadata: Metadata = {
     title: "Vort - AI Solutions & Digital Services | South Africa",
     description:
       "Transform your business with cutting-edge AI solutions, custom app development, and digital marketing services in South Africa.",
-    images: ["/og-image.png"],
+    images: ["https://vort.co.za/og-image.png"],
     creator: "@vort_ai",
   },
   robots: {
@@ -100,8 +100,8 @@ export default function RootLayout({
               "@context": "https://schema.org",
               "@type": "Organization",
               name: "Vort",
-              url: "https://vort.ai",
-              logo: "https://vort.ai/og-image.png",
+              url: "https://vort.co.za",
+              logo: "https://vort.co.za/og-image.png",
               description: "AI solutions and digital services company based in South Africa",
               address: {
                 "@type": "PostalAddress",

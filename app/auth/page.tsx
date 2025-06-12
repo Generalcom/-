@@ -13,7 +13,14 @@ export const metadata: Metadata = {
   alternates: {
     canonical: "https://vort.co.za/auth",
   },
-  robots: "noindex, nofollow", // Private auth page
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+    },
+  },
 }
 
 export default function AuthPage() {

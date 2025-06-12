@@ -1,10 +1,37 @@
 import { Suspense } from "react"
 import TrainAIClientPage from "./TrainAIClientPage"
 import { createServerSupabaseClient } from "@/lib/supabase"
+import type { Metadata } from "next"
 
-export const metadata = {
+export const metadata: Metadata = {
   title: "Train AI Model - Vort",
-  description: "Experience the power of AI training with our interactive simulator.",
+  description:
+    "Experience the power of AI training with our interactive simulator. Train custom AI models for your business needs.",
+  keywords: "AI training, machine learning, custom AI models, AI simulator, business AI solutions",
+  openGraph: {
+    title: "Train AI Model - Vort",
+    description: "Experience the power of AI training with our interactive simulator.",
+    url: "https://vort.co.za/train-ai",
+    images: [
+      {
+        url: "https://vort.co.za/og-train-ai.png",
+        width: 1200,
+        height: 630,
+        alt: "Vort AI Training Platform",
+      },
+    ],
+  },
+  alternates: {
+    canonical: "https://vort.co.za/train-ai",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+    },
+  },
 }
 
 export default async function TrainAIPage({

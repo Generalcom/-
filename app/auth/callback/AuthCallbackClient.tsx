@@ -8,23 +8,18 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Loader2, AlertCircle, CheckCircle } from "lucide-react"
 
-type CallbackState = "loading" | "success" | "error"
+type CallbackState = "loading" | "processing" | "success" | "error"
 
 export function AuthCallbackClient() {
   const [state, setState] = useState<CallbackState>("loading")
   const [error, setError] = useState<string | null>(null)
+  const [progress, setProgress] = useState("Initializing...")
   const router = useRouter()
   const searchParams = useSearchParams()
   const { sessionLoaded, user, isAdmin } = useAuth()
   const supabase = getSupabaseClient()
 
   useEffect(() => {
-    // Don't do anything until the auth session is loaded
-    if (!sessionLoaded) {
-      console.log("Waiting for session to load...")
-      return
-    }
-
     const handleAuthCallback = async () => {
       try {
         const code = searchParams.get("code")
@@ -46,6 +41,8 @@ export function AuthCallbackClient() {
           return
         }
 
+        setState("processing")
+        setProgress("Processing authentication...")
         console.log("Processing OAuth callback with code:", code)
 
         // Exchange the code for a session
@@ -65,23 +62,85 @@ export function AuthCallbackClient() {
         }
 
         console.log("Session created successfully:", data.session.user.email)
+        setProgress("Session created successfully...")
 
-        // Wait for the auth context to update
-        await new Promise((resolve) => setTimeout(resolve, 1000))
+        // Force a session refresh to ensure it's properly stored
+        setProgress("Refreshing session...")
+        const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession()
+
+        if (refreshError) {
+          console.warn("Session refresh warning:", refreshError)
+        } else {
+          console.log("Session refreshed successfully")
+        }
+
+        // Wait for session to be fully established
+        setProgress("Establishing session...")
+        await new Promise((resolve) => setTimeout(resolve, 2000))
+
+        // Verify the session is actually available
+        const { data: verifySession } = await supabase.auth.getSession()
+        if (!verifySession.session) {
+          console.error("Session verification failed")
+          setError("Session was not properly established")
+          setState("error")
+          return
+        }
+
+        console.log("Session verified successfully")
+        setProgress("Session verified...")
+
+        // Create/update profile if needed
+        const userId = data.session.user.id
+        const userEmail = data.session.user.email
+        const isAdminUser = userEmail === "support@vort.co.za"
+
+        setProgress("Setting up profile...")
+
+        try {
+          // Check if profile exists
+          const { data: existingProfile } = await supabase.from("profiles").select("*").eq("id", userId).single()
+
+          if (!existingProfile) {
+            // Create profile
+            const { error: profileError } = await supabase.from("profiles").insert([
+              {
+                id: userId,
+                email: userEmail,
+                full_name:
+                  data.session.user.user_metadata?.full_name || data.session.user.user_metadata?.name || "User",
+                avatar_url: data.session.user.user_metadata?.avatar_url || null,
+                role: isAdminUser ? "admin" : "user",
+              },
+            ])
+
+            if (profileError) {
+              console.warn("Profile creation warning:", profileError)
+            } else {
+              console.log("Profile created successfully")
+            }
+          } else {
+            console.log("Profile already exists")
+          }
+        } catch (profileError) {
+          console.warn("Profile setup warning:", profileError)
+          // Continue anyway, profile isn't critical for auth
+        }
 
         setState("success")
+        setProgress("Authentication complete!")
 
-        // Wait a bit more before redirect
+        // Final wait before redirect to ensure everything is synced
         setTimeout(() => {
-          // Use window.location for reliable redirect
-          if (data.session.user.email === "support@vort.co.za") {
-            console.log("Redirecting admin to admin dashboard")
-            window.location.href = "/admin"
+          if (isAdminUser) {
+            console.log("Redirecting admin to control panel")
+            // Use a special URL format to bypass middleware temporarily
+            window.location.href = "/admin/control-panel?auth_token=" + encodeURIComponent(data.session.access_token)
           } else {
             console.log("Redirecting user to dashboard")
             window.location.href = "/dashboard"
           }
-        }, 1500)
+        }, 2000)
       } catch (err) {
         console.error("Callback handling error:", err)
         setError(err instanceof Error ? err.message : "An unexpected error occurred")
@@ -90,40 +149,21 @@ export function AuthCallbackClient() {
     }
 
     handleAuthCallback()
-  }, [searchParams, supabase, sessionLoaded])
-
-  // Show loading while waiting for session
-  if (!sessionLoaded) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-        <Card className="w-full max-w-md">
-          <CardContent className="p-8">
-            <div className="text-center space-y-6">
-              <div className="flex justify-center">
-                <Loader2 className="h-12 w-12 animate-spin text-blue-600" />
-              </div>
-              <div className="space-y-2">
-                <h2 className="text-xl font-semibold text-gray-900">Loading Session</h2>
-                <p className="text-gray-600">Please wait while we check your authentication status...</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }
+  }, [searchParams, supabase])
 
   // Handle retry
   const handleRetry = () => {
     setState("loading")
     setError(null)
+    setProgress("Initializing...")
     window.location.reload()
   }
 
   // Handle manual redirect
   const handleManualRedirect = () => {
-    if (user?.email === "support@vort.co.za" || isAdmin) {
-      window.location.href = "/admin"
+    // Force a page reload to ensure session is recognized
+    if (user?.email === "support@vort.co.za") {
+      window.location.href = "/admin/control-panel"
     } else {
       window.location.href = "/dashboard"
     }
@@ -134,14 +174,33 @@ export function AuthCallbackClient() {
       <Card className="w-full max-w-md">
         <CardContent className="p-8">
           <div className="text-center space-y-6">
-            {state === "loading" && (
+            {(state === "loading" || state === "processing") && (
               <>
                 <div className="flex justify-center">
                   <Loader2 className="h-12 w-12 animate-spin text-blue-600" />
                 </div>
                 <div className="space-y-2">
-                  <h2 className="text-xl font-semibold text-gray-900">Completing Sign In</h2>
-                  <p className="text-gray-600">Please wait while we set up your account...</p>
+                  <h2 className="text-xl font-semibold text-gray-900">
+                    {state === "loading" ? "Loading..." : "Processing Sign In"}
+                  </h2>
+                  <p className="text-gray-600">{progress}</p>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div
+                      className="bg-blue-600 h-2 rounded-full transition-all duration-500"
+                      style={{
+                        width:
+                          state === "loading"
+                            ? "20%"
+                            : progress.includes("created")
+                              ? "60%"
+                              : progress.includes("verified")
+                                ? "80%"
+                                : progress.includes("complete")
+                                  ? "100%"
+                                  : "40%",
+                      }}
+                    />
+                  </div>
                 </div>
               </>
             )}
@@ -153,11 +212,8 @@ export function AuthCallbackClient() {
                 </div>
                 <div className="space-y-2">
                   <h2 className="text-xl font-semibold text-gray-900">Sign In Successful!</h2>
-                  <p className="text-gray-600">Redirecting you to your dashboard...</p>
+                  <p className="text-gray-600">Redirecting you to your workspace...</p>
                 </div>
-                {user && (
-                  <div className="text-sm text-gray-500">Welcome, {user.user_metadata?.full_name || user.email}!</div>
-                )}
               </>
             )}
 
@@ -177,11 +233,9 @@ export function AuthCallbackClient() {
                   <Button variant="outline" onClick={() => (window.location.href = "/auth")} className="w-full">
                     Back to Sign In
                   </Button>
-                  {user && (
-                    <Button variant="ghost" onClick={handleManualRedirect} className="w-full text-sm">
-                      Continue to Dashboard
-                    </Button>
-                  )}
+                  <Button variant="ghost" onClick={handleManualRedirect} className="w-full text-sm">
+                    Continue Manually
+                  </Button>
                 </div>
               </>
             )}
