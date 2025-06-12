@@ -9,11 +9,14 @@ import "./globals.css"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "Vort - AI Solutions & Digital Services | South Africa",
+  metadataBase: new URL("https://vort.co.za"),
+  title: {
+    default: "Vort - AI-Powered Solutions for Your Business",
+    template: "%s | Vort",
+  },
   description:
-    "Transform your business with cutting-edge AI solutions, custom app development, and digital marketing services. Based in South Africa, serving businesses nationwide with professional AI training and consultation.",
-  keywords:
-    "AI solutions, machine learning, app development, digital marketing, South Africa, artificial intelligence, business automation, custom software",
+    "Transform your business with cutting-edge AI solutions. Custom AI development, consulting, and implementation services in South Africa.",
+  keywords: "AI solutions, artificial intelligence, machine learning, business automation, AI consulting, South Africa",
   authors: [{ name: "Vort" }],
   creator: "Vort",
   publisher: "Vort",
@@ -22,34 +25,28 @@ export const metadata: Metadata = {
     address: false,
     telephone: false,
   },
-  metadataBase: new URL("https://vort.co.za"),
-  alternates: {
-    canonical: "https://vort.co.za",
-  },
   openGraph: {
-    title: "Vort - AI Solutions & Digital Services | South Africa",
-    description:
-      "Transform your business with cutting-edge AI solutions, custom app development, and digital marketing services. Professional AI training and consultation in South Africa.",
+    type: "website",
+    locale: "en_ZA",
     url: "https://vort.co.za",
+    title: "Vort - AI-Powered Solutions for Your Business",
+    description:
+      "Transform your business with cutting-edge AI solutions. Custom AI development, consulting, and implementation services in South Africa.",
     siteName: "Vort",
     images: [
       {
-        url: "https://vort.co.za/og-image.png",
+        url: "/og-image.png",
         width: 1200,
         height: 630,
-        alt: "Vort - AI Solutions & Digital Services",
+        alt: "Vort - AI-Powered Solutions",
       },
     ],
-    locale: "en_ZA",
-    type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Vort - AI Solutions & Digital Services | South Africa",
-    description:
-      "Transform your business with cutting-edge AI solutions, custom app development, and digital marketing services in South Africa.",
-    images: ["https://vort.co.za/og-image.png"],
-    creator: "@vort_ai",
+    title: "Vort - AI-Powered Solutions for Your Business",
+    description: "Transform your business with cutting-edge AI solutions.",
+    images: ["/og-image.png"],
   },
   robots: {
     index: true,
@@ -70,11 +67,11 @@ export const metadata: Metadata = {
 
 export default function RootLayout({
   children,
-}: {
+}: Readonly<{
   children: React.ReactNode
-}) {
+}>) {
   return (
-    <html lang="en-ZA">
+    <html lang="en">
       <head>
         {/* Preconnect to external domains */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
