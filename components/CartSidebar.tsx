@@ -6,9 +6,10 @@ import { X, Plus, Minus, ShoppingBag, Trash2 } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import { useCart } from "@/hooks/useCart"
 import { useAuth } from "@/hooks/useAuth"
-import Link from "next/link"
+import Link from "next/link" // Import Link
 import { toast } from "@/components/ui/use-toast"
 import { useRouter } from "next/navigation"
+import { DotLottieReact } from "@lottiefiles/dotlottie-react"
 
 interface CartSidebarProps {
   isOpen: boolean
@@ -108,18 +109,11 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
             <div className="flex-1 overflow-y-auto p-4">
               {items.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-center">
-                  <motion.div
-                    initial={{ scale: 0.8, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    transition={{ duration: 0.5 }}
-                    className="w-48 h-48 mb-4 flex items-center justify-center"
-                  >
-                    <div className="w-32 h-32 bg-gradient-to-br from-primary/20 to-primary/5 rounded-full flex items-center justify-center border-2 border-primary/20">
-                      <ShoppingBag className="h-16 w-16 text-primary/60" />
-                    </div>
-                  </motion.div>
+                  <div className="w-48 h-48 mb-4">
+                    <DotLottieReact src="/animations/empty-cart.lottie" loop autoplay className="w-full h-full" />
+                  </div>
                   <h3 className="text-lg font-semibold text-foreground mb-1 mt-4">Your cart is empty</h3>
-                  <p className="text-base text-muted-foreground/80 mb-6">Add some AI solutions to get started!</p>
+                  <p className="text-base text-[#666] mb-6">Add some AI solutions to get started!</p>
                   <Link href="/store" passHref>
                     <Button onClick={onClose} className="bg-primary text-primary-foreground hover:bg-primary/90">
                       Continue Shopping
