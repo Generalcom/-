@@ -9,82 +9,10 @@ import { useAuth } from "@/hooks/useAuth"
 import Link from "next/link"
 import { toast } from "@/components/ui/use-toast"
 import { useRouter } from "next/navigation"
-import { useEffect, useState } from "react"
 
 interface CartSidebarProps {
   isOpen: boolean
   onClose: () => void
-}
-
-// Custom animated empty cart component
-function AnimatedEmptyCart() {
-  const [mounted, setMounted] = useState(false)
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
-
-  if (!mounted) {
-    return (
-      <div className="w-48 h-48 bg-muted/20 rounded-lg animate-pulse flex items-center justify-center">
-        <ShoppingBag className="h-16 w-16 text-muted-foreground/50" />
-      </div>
-    )
-  }
-
-  return (
-    <motion.div
-      initial={{ scale: 0.8, opacity: 0 }}
-      animate={{ scale: 1, opacity: 1 }}
-      transition={{ duration: 0.5, ease: "easeOut" }}
-      className="w-48 h-48 flex items-center justify-center"
-    >
-      <motion.div
-        animate={{
-          y: [0, -10, 0],
-          rotate: [0, 5, -5, 0],
-        }}
-        transition={{
-          duration: 3,
-          repeat: Number.POSITIVE_INFINITY,
-          ease: "easeInOut",
-        }}
-        className="relative"
-      >
-        <div className="w-32 h-32 bg-gradient-to-br from-primary/20 to-primary/5 rounded-full flex items-center justify-center border-2 border-primary/20">
-          <motion.div
-            animate={{ scale: [1, 1.1, 1] }}
-            transition={{
-              duration: 2,
-              repeat: Number.POSITIVE_INFINITY,
-              ease: "easeInOut",
-            }}
-          >
-            <ShoppingBag className="h-16 w-16 text-primary/60" />
-          </motion.div>
-        </div>
-        <motion.div
-          animate={{ opacity: [0.5, 1, 0.5] }}
-          transition={{
-            duration: 2,
-            repeat: Number.POSITIVE_INFINITY,
-            ease: "easeInOut",
-          }}
-          className="absolute -top-2 -right-2 w-6 h-6 bg-primary/20 rounded-full"
-        />
-        <motion.div
-          animate={{ opacity: [0.3, 0.8, 0.3] }}
-          transition={{
-            duration: 2.5,
-            repeat: Number.POSITIVE_INFINITY,
-            ease: "easeInOut",
-            delay: 0.5,
-          }}
-          className="absolute -bottom-1 -left-1 w-4 h-4 bg-primary/15 rounded-full"
-        />
-      </motion.div>
-    </motion.div>
-  )
 }
 
 export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
@@ -180,9 +108,16 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
             <div className="flex-1 overflow-y-auto p-4">
               {items.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-center">
-                  <div className="mb-4">
-                    <AnimatedEmptyCart />
-                  </div>
+                  <motion.div
+                    initial={{ scale: 0.8, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ duration: 0.5 }}
+                    className="w-48 h-48 mb-4 flex items-center justify-center"
+                  >
+                    <div className="w-32 h-32 bg-gradient-to-br from-primary/20 to-primary/5 rounded-full flex items-center justify-center border-2 border-primary/20">
+                      <ShoppingBag className="h-16 w-16 text-primary/60" />
+                    </div>
+                  </motion.div>
                   <h3 className="text-lg font-semibold text-foreground mb-1 mt-4">Your cart is empty</h3>
                   <p className="text-base text-[#666] mb-6">Add some AI solutions to get started!</p>
                   <Link href="/store" passHref>
