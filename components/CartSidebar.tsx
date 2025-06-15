@@ -8,8 +8,6 @@ import { useCart } from "@/hooks/useCart"
 import { useAuth } from "@/hooks/useAuth"
 import Link from "next/link" // Import Link
 import { toast } from "@/components/ui/use-toast"
-import { useRouter } from "next/navigation"
-import { DotLottieReact } from "@lottiefiles/dotlottie-react"
 
 interface CartSidebarProps {
   isOpen: boolean
@@ -19,7 +17,6 @@ interface CartSidebarProps {
 export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
   const { items, updateQuantity, removeFromCart, getTotalItems, getTotalPrice, getTotalSavings, clearCart } = useCart()
   const { user } = useAuth()
-  const router = useRouter()
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat("en-ZA", {
@@ -43,13 +40,11 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
           </Link>
         ),
       })
-      onClose()
+      onClose() // Close cart sidebar
       return
     }
-
-    // Close cart sidebar and navigate to checkout
-    onClose()
-    router.push("/checkout")
+    // If user is logged in, proceed to checkout
+    window.location.href = "/checkout" // Or use Next.js router if preferred and cart state is global
   }
 
   const handleRemoveFromCart = (itemId: string, itemTitle: string) => {
@@ -109,11 +104,9 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
             <div className="flex-1 overflow-y-auto p-4">
               {items.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-center">
-                  <div className="w-48 h-48 mb-4">
-                    <DotLottieReact src="/animations/empty-cart.lottie" loop autoplay className="w-full h-full" />
-                  </div>
-                  <h3 className="text-lg font-semibold text-foreground mb-1 mt-4">Your cart is empty</h3>
-                  <p className="text-base text-[#666] mb-6">Add some AI solutions to get started!</p>
+                  <ShoppingBag className="h-12 w-12 text-muted-foreground mb-4" />
+                  <h3 className="text-md font-semibold text-foreground mb-1">Your cart is empty</h3>
+                  <p className="text-sm text-muted-foreground mb-5">Add some AI solutions to get started!</p>
                   <Link href="/store" passHref>
                     <Button onClick={onClose} className="bg-primary text-primary-foreground hover:bg-primary/90">
                       Continue Shopping

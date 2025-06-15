@@ -1,14 +1,14 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Shield, ArrowLeft, Package, Trash2 } from "lucide-react"
+import { Shield, ArrowLeft, Package, Trash2, RefreshCcw, ShoppingCart } from "lucide-react"
 import Link from "next/link"
 import { motion } from "framer-motion"
 import { useAuth } from "@/hooks/useAuth"
@@ -16,11 +16,13 @@ import { useCart } from "@/hooks/useCart"
 
 export default function CheckoutPage() {
   const router = useRouter()
-  const searchParams = useSearchParams()
-  const { user, loading: authLoading, sessionLoaded } = useAuth()
+  const { user, loading: authLoading } = useAuth()
   const { items, updateQuantity, removeFromCart, getTotalItems, getTotalPrice, getTotalSavings, clearCart } = useCart()
   const [isProcessing, setIsProcessing] = useState(false)
-  const [pageReady, setPageReady] = useState(false)
+  const [authChecked, setAuthChecked] = useState(false)
+  const [redirectTimeout, setRedirectTimeout] = useState<NodeJS.Timeout | null>(null)
+  const [redirectAttempts, setRedirectAttempts] = useState(0)
+  const [forceShow, setForceShow] = useState(false)
   const [billingInfo, setBillingInfo] = useState({
     firstName: "",
     lastName: "",
@@ -35,61 +37,66 @@ export default function CheckoutPage() {
 
   // Initialize billing info when user loads
   useEffect(() => {
-    if (user) {
+    if (user && !authChecked) {
       setBillingInfo((prev) => ({
         ...prev,
         firstName: user.name?.split(" ")[0] || user.user_metadata?.full_name?.split(" ")[0] || "",
         lastName: user.name?.split(" ")[1] || user.user_metadata?.full_name?.split(" ")[1] || "",
         email: user.email || "",
       }))
+      setAuthChecked(true)
     }
-  }, [user])
+  }, [user, authChecked])
 
-  // Handle auth and cart validation - only after session is loaded
+  // Check authentication and cart after auth is loaded
   useEffect(() => {
-    if (!sessionLoaded) return // Wait for session to be fully loaded
+    // Clear any existing timeout to prevent multiple redirects
+    if (redirectTimeout) {
+      clearTimeout(redirectTimeout)
+    }
 
-    console.log("Checkout: Session loaded, checking auth and cart", {
-      user: !!user,
-      itemsCount: items.length,
-      authLoading,
-    })
-
-    // If not authenticated, redirect to auth
-    if (!user) {
-      console.log("Checkout: No user, redirecting to auth")
-      router.replace("/auth?redirect=/checkout")
+    // Skip checks if we're forcing the page to show
+    if (forceShow) {
       return
     }
 
-    // Check if we have items in cart
-    let hasItems = items.length > 0
+    // Only proceed if auth is loaded and we've checked auth
+    if (!authLoading && authChecked) {
+      // Redirect to auth if not logged in
+      if (!user) {
+        console.log("No user found, redirecting to auth")
+        const timeout = setTimeout(() => {
+          router.push("/auth?redirect=checkout")
+        }, 1000)
+        setRedirectTimeout(timeout)
+        setRedirectAttempts((prev) => prev + 1)
+        return
+      }
 
-    // If no items in React state, check localStorage
-    if (!hasItems) {
-      try {
+      // Redirect to store if cart is empty and we've loaded cart items
+      if (items.length === 0) {
+        // Check localStorage as a backup
         const storedItems = localStorage.getItem("cart_items")
-        if (storedItems) {
-          const parsedItems = JSON.parse(storedItems)
-          hasItems = parsedItems.length > 0
-          console.log("Checkout: Found items in localStorage", parsedItems.length)
+        if (!storedItems || JSON.parse(storedItems).length === 0) {
+          console.log("Cart is empty, redirecting to store")
+          const timeout = setTimeout(() => {
+            router.push("/store")
+          }, 1000)
+          setRedirectTimeout(timeout)
+          setRedirectAttempts((prev) => prev + 1)
+          return
         }
-      } catch (error) {
-        console.error("Checkout: Error parsing localStorage cart", error)
       }
     }
+  }, [authLoading, authChecked, user, items.length, router, redirectTimeout, forceShow])
 
-    // If no items anywhere, redirect to store
-    if (!hasItems) {
-      console.log("Checkout: No items in cart, redirecting to store")
-      router.replace("/store")
-      return
+  // Safety mechanism to prevent infinite redirects
+  useEffect(() => {
+    if (redirectAttempts > 3) {
+      console.log("Too many redirect attempts, forcing page to show")
+      setForceShow(true)
     }
-
-    // All checks passed, show the page
-    console.log("Checkout: All checks passed, showing checkout page")
-    setPageReady(true)
-  }, [sessionLoaded, user, items.length, router])
+  }, [redirectAttempts])
 
   const handleInputChange = (field: string, value: string) => {
     setBillingInfo((prev) => ({ ...prev, [field]: value }))
@@ -167,20 +174,57 @@ export default function CheckoutPage() {
     }
   }
 
-  // Show loading while session is being loaded or page is not ready
-  if (!sessionLoaded || !pageReady) {
+  // Force show the checkout page even if conditions aren't met
+  const handleForceShow = () => {
+    setForceShow(true)
+  }
+
+  // Refresh the page to try again
+  const handleRefresh = () => {
+    window.location.reload()
+  }
+
+  // Show loading while auth is being checked
+  if (authLoading) {
     return (
       <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <h1 className="text-2xl font-bold mb-2">Loading Checkout...</h1>
-          <p className="text-muted-foreground">Preparing your order</p>
+          <h1 className="text-2xl font-bold mb-4">Loading...</h1>
+          <p className="text-muted-foreground">Checking authentication...</p>
         </div>
       </div>
     )
   }
 
-  // Render the checkout page
+  // Show loading if redirecting (but this should be brief)
+  if (!forceShow && (!user || (items.length === 0 && redirectAttempts <= 3))) {
+    return (
+      <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold mb-4">Redirecting...</h1>
+          <p className="text-muted-foreground mb-8">Taking you to the right place...</p>
+
+          <div className="flex flex-col items-center gap-4">
+            <Button onClick={handleRefresh} variant="outline" className="flex items-center gap-2">
+              <RefreshCcw className="h-4 w-4" />
+              Refresh Page
+            </Button>
+
+            <Button onClick={handleForceShow} className="flex items-center gap-2">
+              <ShoppingCart className="h-4 w-4" />
+              Continue to Checkout Anyway
+            </Button>
+
+            <div className="mt-4 text-sm text-muted-foreground">
+              If you keep seeing this message, click "Continue to Checkout Anyway"
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // If we're forcing the page to show or all conditions are met, show the checkout
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* Navigation */}

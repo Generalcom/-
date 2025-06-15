@@ -41,19 +41,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [sessionLoaded, setSessionLoaded] = useState(false)
   const [error, setError] = useState<Error | null>(null)
   const [offlineMode, setOfflineMode] = useState(false)
+  const [supabaseClient] = useState(() => {
+    try {
+      return getSupabaseClient()
+    } catch (err) {
+      console.error("Failed to initialize Supabase client:", err)
+      return null
+    }
+  })
 
-  // Use refs to prevent multiple listeners and initializations
+  // Use refs to prevent multiple listeners
   const authListenerRef = useRef<any>(null)
   const initializingRef = useRef(false)
-  const supabaseClientRef = useRef<any>(null)
-
-  // Initialize Supabase client only once
-  useEffect(() => {
-    if (!supabaseClientRef.current) {
-      supabaseClientRef.current = getSupabaseClient()
-      console.log("🔧 Auth: Supabase client initialized")
-    }
-  }, [])
 
   // Admin detection - prioritize email check, fallback to profile role
   const isAdmin = user?.email === "support@vort.co.za" || profile?.role === "admin"
@@ -97,8 +96,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const fetchProfile = async (userId: string, userEmail?: string) => {
-    const supabaseClient = supabaseClientRef.current
-
     // Don't block auth flow if Supabase client is not available
     if (!supabaseClient) {
       console.log("No Supabase client available, skipping profile fetch")
@@ -159,7 +156,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const createProfileAsync = async (userId: string, userEmail: string) => {
-    const supabaseClient = supabaseClientRef.current
     if (!supabaseClient) return
 
     try {
@@ -201,11 +197,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     initializingRef.current = true
-    console.log("🚀 Initializing authentication...")
+    console.log("Initializing authentication...")
 
     try {
-      const supabaseClient = supabaseClientRef.current
-
       if (!supabaseClient) {
         console.log("No Supabase client - auth will work in limited mode")
         setSessionLoaded(true)
@@ -262,17 +256,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  // Initialize auth on mount - only once
+  // Initialize auth on mount
   useEffect(() => {
-    if (supabaseClientRef.current && !initializingRef.current) {
-      initializeAuth()
-    }
+    initializeAuth()
   }, [])
 
   // Set up auth state listener - only once
   useEffect(() => {
-    const supabaseClient = supabaseClientRef.current
-
     if (!supabaseClient || authListenerRef.current) {
       return
     }
@@ -315,7 +305,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         authListenerRef.current = null
       }
     }
-  }, [])
+  }, [supabaseClient])
 
   // Network status detection
   useEffect(() => {
@@ -346,7 +336,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [offlineMode])
 
   const createAdminUser = async () => {
-    const supabaseClient = supabaseClientRef.current
     if (!supabaseClient) return { success: false, error: "Supabase client not available" }
     if (offlineMode) return { success: false, error: "Cannot create admin user in offline mode" }
 
@@ -381,7 +370,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const signIn = async (email: string, password: string) => {
-    const supabaseClient = supabaseClientRef.current
     if (!supabaseClient) return { error: new Error("Authentication client not available") }
 
     try {
@@ -421,7 +409,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const signUp = async (email: string, password: string, fullName: string) => {
-    const supabaseClient = supabaseClientRef.current
     if (!supabaseClient) return { error: new Error("Authentication client not available") }
     if (offlineMode) return { error: new Error("Cannot sign up while offline") }
 
@@ -452,7 +439,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const signInWithGoogle = async () => {
-    const supabaseClient = supabaseClientRef.current
     if (!supabaseClient) return { error: new Error("Authentication client not available") }
     if (offlineMode) return { error: new Error("Cannot sign in with Google while offline") }
 
@@ -474,7 +460,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const signOut = async () => {
-    const supabaseClient = supabaseClientRef.current
     if (!supabaseClient) return
 
     try {

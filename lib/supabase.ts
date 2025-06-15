@@ -4,34 +4,16 @@ import { cookies } from "next/headers"
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
-// Single client instance for client-side usage - properly managed
+// Single client instance for client-side usage
 let clientInstance: ReturnType<typeof createClient> | null = null
-let isInitializing = false
 
 export const getSupabaseClient = () => {
-  // Only create client on browser side
-  if (typeof window === "undefined") {
-    return null
-  }
-
-  // Return existing instance if available
-  if (clientInstance) {
-    return clientInstance
-  }
-
-  // Prevent multiple simultaneous initializations
-  if (isInitializing) {
-    return null
-  }
-
-  isInitializing = true
-
-  try {
+  if (!clientInstance && typeof window !== "undefined") {
     clientInstance = createClient(supabaseUrl, supabaseAnonKey, {
       auth: {
         persistSession: true,
         autoRefreshToken: true,
-        storageKey: "vort-auth-token", // Use unique storage key
+        storageKey: "sb-auth-token",
         storage: {
           getItem: (key) => {
             if (typeof document === "undefined") return null
@@ -54,37 +36,25 @@ export const getSupabaseClient = () => {
         },
       },
     })
-
-    console.log("✅ Supabase client initialized successfully")
-    return clientInstance
-  } catch (error) {
-    console.error("❌ Failed to initialize Supabase client:", error)
-    return null
-  } finally {
-    isInitializing = false
   }
+  return clientInstance
 }
 
 // For server components - uses cookies() from Next.js
 export const createServerSupabaseClient = () => {
-  try {
-    const cookieStore = cookies()
+  const cookieStore = cookies()
 
-    return createClient(supabaseUrl, supabaseAnonKey, {
-      auth: {
-        persistSession: false,
-        autoRefreshToken: false,
+  return createClient(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+    },
+    global: {
+      headers: {
+        cookie: cookieStore.toString(),
       },
-      global: {
-        headers: {
-          cookie: cookieStore.toString(),
-        },
-      },
-    })
-  } catch (error) {
-    console.error("Failed to create server Supabase client:", error)
-    return null
-  }
+    },
+  })
 }
 
 // For admin operations that need service role
