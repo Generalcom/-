@@ -119,7 +119,7 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
                     </div>
                   </motion.div>
                   <h3 className="text-lg font-semibold text-foreground mb-1 mt-4">Your cart is empty</h3>
-                  <p className="text-base text-[#666] mb-6">Add some AI solutions to get started!</p>
+                  <p className="text-base text-muted-foreground/80 mb-6">Add some AI solutions to get started!</p>
                   <Link href="/store" passHref>
                     <Button onClick={onClose} className="bg-primary text-primary-foreground hover:bg-primary/90">
                       Continue Shopping
