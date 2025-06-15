@@ -9,7 +9,15 @@ import { useAuth } from "@/hooks/useAuth"
 import Link from "next/link" // Import Link
 import { toast } from "@/components/ui/use-toast"
 import { useRouter } from "next/navigation"
-import { DotLottieReact } from "@lottiefiles/dotlottie-react"
+import dynamic from "next/dynamic"
+
+const DotLottieReact = dynamic(
+  () => import("@lottiefiles/dotlottie-react").then((mod) => ({ default: mod.DotLottieReact })),
+  {
+    ssr: false,
+    loading: () => <div className="w-full h-full bg-muted/20 rounded-lg animate-pulse" />,
+  },
+)
 
 interface CartSidebarProps {
   isOpen: boolean
