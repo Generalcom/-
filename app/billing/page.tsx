@@ -23,14 +23,7 @@ export const metadata: Metadata = {
   alternates: {
     canonical: "https://vort.co.za/billing",
   },
-  robots: {
-    index: true,
-    follow: true,
-    googleBot: {
-      index: true,
-      follow: true,
-    },
-  },
+  robots: "noindex, nofollow", // Private billing page
 }
 
 export default function BillingPage() {

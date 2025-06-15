@@ -21,7 +21,6 @@ interface JobPosition {
   created_at: string
 }
 
-// Move metadata to a separate file since this is a client component
 export default function CareersPage() {
   const [positions, setPositions] = useState<JobPosition[]>([])
   const [loading, setLoading] = useState(true)

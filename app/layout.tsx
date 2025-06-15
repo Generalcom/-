@@ -1,20 +1,19 @@
 import type React from "react"
 import type { Metadata } from "next"
 import { Inter } from "next/font/google"
-import { ClientLayout } from "./layout-client"
+import Script from "next/script"
+import { AuthProvider } from "@/hooks/useAuth"
+import { Toaster } from "@/components/ui/toaster"
 import "./globals.css"
 
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://vort.co.za"),
-  title: {
-    default: "Vort - AI-Powered Solutions for Your Business",
-    template: "%s | Vort",
-  },
+  title: "Vort - AI Solutions & Digital Services | South Africa",
   description:
-    "Transform your business with cutting-edge AI solutions. Custom AI development, consulting, and implementation services in South Africa.",
-  keywords: "AI solutions, artificial intelligence, machine learning, business automation, AI consulting, South Africa",
+    "Transform your business with cutting-edge AI solutions, custom app development, and digital marketing services. Based in South Africa, serving businesses nationwide with professional AI training and consultation.",
+  keywords:
+    "AI solutions, machine learning, app development, digital marketing, South Africa, artificial intelligence, business automation, custom software",
   authors: [{ name: "Vort" }],
   creator: "Vort",
   publisher: "Vort",
@@ -23,28 +22,34 @@ export const metadata: Metadata = {
     address: false,
     telephone: false,
   },
+  metadataBase: new URL("https://vort.ai"),
+  alternates: {
+    canonical: "/",
+  },
   openGraph: {
-    type: "website",
-    locale: "en_ZA",
-    url: "https://vort.co.za",
-    title: "Vort - AI-Powered Solutions for Your Business",
+    title: "Vort - AI Solutions & Digital Services | South Africa",
     description:
-      "Transform your business with cutting-edge AI solutions. Custom AI development, consulting, and implementation services in South Africa.",
+      "Transform your business with cutting-edge AI solutions, custom app development, and digital marketing services. Professional AI training and consultation in South Africa.",
+    url: "https://vort.ai",
     siteName: "Vort",
     images: [
       {
         url: "/og-image.png",
         width: 1200,
         height: 630,
-        alt: "Vort - AI-Powered Solutions",
+        alt: "Vort - AI Solutions & Digital Services",
       },
     ],
+    locale: "en_ZA",
+    type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Vort - AI-Powered Solutions for Your Business",
-    description: "Transform your business with cutting-edge AI solutions.",
+    title: "Vort - AI Solutions & Digital Services | South Africa",
+    description:
+      "Transform your business with cutting-edge AI solutions, custom app development, and digital marketing services in South Africa.",
     images: ["/og-image.png"],
+    creator: "@vort_ai",
   },
   robots: {
     index: true,
@@ -65,11 +70,11 @@ export const metadata: Metadata = {
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode
-}>) {
+}) {
   return (
-    <html lang="en">
+    <html lang="en-ZA">
       <head>
         {/* Preconnect to external domains */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -95,8 +100,8 @@ export default function RootLayout({
               "@context": "https://schema.org",
               "@type": "Organization",
               name: "Vort",
-              url: "https://vort.co.za",
-              logo: "https://vort.co.za/og-image.png",
+              url: "https://vort.ai",
+              logo: "https://vort.ai/og-image.png",
               description: "AI solutions and digital services company based in South Africa",
               address: {
                 "@type": "PostalAddress",
@@ -124,7 +129,29 @@ export default function RootLayout({
         />
       </head>
       <body className={inter.className}>
-        <ClientLayout>{children}</ClientLayout>
+        <AuthProvider>
+          {children}
+          <Toaster />
+        </AuthProvider>
+
+        {/* Google Analytics */}
+        <Script src="https://www.googletagmanager.com/gtag/js?id=GA_MEASUREMENT_ID" strategy="afterInteractive" />
+        <Script id="google-analytics" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', 'GA_MEASUREMENT_ID');
+          `}
+        </Script>
+
+        {/* Google AdSense */}
+        <Script
+          async
+          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXXXX"
+          crossOrigin="anonymous"
+          strategy="afterInteractive"
+        />
       </body>
     </html>
   )

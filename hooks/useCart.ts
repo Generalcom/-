@@ -23,6 +23,7 @@ interface CartContextType {
   getTotalSavings: () => number
   isEmpty: () => boolean
   syncCartWithStorage: () => void
+  syncCartImmediately: () => void
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined)
@@ -99,6 +100,18 @@ export function useCart() {
     return items.length === 0
   }
 
+  const syncCartImmediately = () => {
+    const savedCart = localStorage.getItem("cart_items")
+    if (savedCart) {
+      try {
+        const parsedItems = JSON.parse(savedCart)
+        setItems(parsedItems)
+      } catch (error) {
+        console.error("Error parsing cart from localStorage:", error)
+      }
+    }
+  }
+
   if (context !== undefined) {
     return context
   }
@@ -115,5 +128,6 @@ export function useCart() {
     getTotalSavings,
     isEmpty,
     syncCartWithStorage,
+    syncCartImmediately,
   }
 }
