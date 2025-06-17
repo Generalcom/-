@@ -124,7 +124,34 @@ export default function TermsPage() {
               </section>
 
               <section className="mb-8">
-                <h2 className="text-2xl font-semibold text-foreground mb-4">7. Service Level Agreement</h2>
+                <h2 className="text-2xl font-semibold text-foreground mb-4">7. Refund Policy</h2>
+                <p className="text-muted-foreground mb-4">
+                  Vort offers the following refund policies for our services:
+                </p>
+                <ul className="list-disc pl-6 text-muted-foreground mb-4">
+                  <li>
+                    <strong>Custom Development Services:</strong> Refunds are only available if requested within 3 days of payment and before any substantial work has begun. Once development work has commenced, no refunds will be granted.
+                  </li>
+                  <li>
+                    <strong>Subscription Services:</strong> You may cancel your subscription at any time, but no refunds will be provided for the current billing period. You will continue to have access to the service until the end of your billing cycle.
+                  </li>
+                  <li>
+                    <strong>Digital Products:</strong> Due to the nature of digital goods, all sales are final unless the product is defective or not as described.
+                  </li>
+                  <li>
+                    <strong>Service Interruptions:</strong> In the event of prolonged service interruptions (more than 24 continuous hours), customers may be eligible for service credits at Vort's discretion.
+                  </li>
+                  <li>
+                    <strong>Refund Processing:</strong> Approved refunds will be processed within 14 business days and issued to the original payment method.
+                  </li>
+                </ul>
+                <p className="text-muted-foreground mb-4">
+                  To request a refund, please contact our support team at support@vort.co.za with your order details and reason for the refund request.
+                </p>
+              </section>
+
+              <section className="mb-8">
+                <h2 className="text-2xl font-semibold text-foreground mb-4">8. Service Level Agreement</h2>
                 <p className="text-muted-foreground mb-4">
                   We strive to provide reliable services with minimal downtime. However, we do not guarantee
                   uninterrupted service and are not liable for any downtime or service interruptions.
@@ -132,7 +159,7 @@ export default function TermsPage() {
               </section>
 
               <section className="mb-8">
-                <h2 className="text-2xl font-semibold text-foreground mb-4">8. Privacy and Data Protection</h2>
+                <h2 className="text-2xl font-semibold text-foreground mb-4">9. Privacy and Data Protection</h2>
                 <p className="text-muted-foreground mb-4">
                   Your privacy is important to us. Please review our Privacy Policy, which also governs your use of our
                   services, to understand our practices regarding the collection and use of your information.
@@ -140,7 +167,7 @@ export default function TermsPage() {
               </section>
 
               <section className="mb-8">
-                <h2 className="text-2xl font-semibold text-foreground mb-4">9. Limitation of Liability</h2>
+                <h2 className="text-2xl font-semibold text-foreground mb-4">10. Limitation of Liability</h2>
                 <p className="text-muted-foreground mb-4">
                   To the maximum extent permitted by law, Vort shall not be liable for any indirect, incidental,
                   special, consequential, or punitive damages, or any loss of profits or revenues, whether incurred
@@ -149,7 +176,7 @@ export default function TermsPage() {
               </section>
 
               <section className="mb-8">
-                <h2 className="text-2xl font-semibold text-foreground mb-4">10. Indemnification</h2>
+                <h2 className="text-2xl font-semibold text-foreground mb-4">11. Indemnification</h2>
                 <p className="text-muted-foreground mb-4">
                   You agree to defend, indemnify, and hold harmless Vort and its officers, directors, employees, and
                   agents from and against any claims, liabilities, damages, judgments, awards, losses, costs, expenses,
@@ -158,7 +185,7 @@ export default function TermsPage() {
               </section>
 
               <section className="mb-8">
-                <h2 className="text-2xl font-semibold text-foreground mb-4">11. Termination</h2>
+                <h2 className="text-2xl font-semibold text-foreground mb-4">12. Termination</h2>
                 <p className="text-muted-foreground mb-4">
                   We may terminate or suspend your account and bar access to our services immediately, without prior
                   notice or liability, under our sole discretion, for any reason whatsoever, including but not limited
@@ -167,7 +194,7 @@ export default function TermsPage() {
               </section>
 
               <section className="mb-8">
-                <h2 className="text-2xl font-semibold text-foreground mb-4">12. Governing Law</h2>
+                <h2 className="text-2xl font-semibold text-foreground mb-4">13. Governing Law</h2>
                 <p className="text-muted-foreground mb-4">
                   These Terms shall be interpreted and governed by the laws of South Africa. Any disputes arising from
                   these Terms or your use of our services shall be subject to the exclusive jurisdiction of the courts
@@ -176,7 +203,7 @@ export default function TermsPage() {
               </section>
 
               <section className="mb-8">
-                <h2 className="text-2xl font-semibold text-foreground mb-4">13. Changes to Terms</h2>
+                <h2 className="text-2xl font-semibold text-foreground mb-4">14. Changes to Terms</h2>
                 <p className="text-muted-foreground mb-4">
                   We reserve the right to modify or replace these Terms at any time. If a revision is material, we will
                   provide at least 30 days notice prior to any new terms taking effect.
@@ -184,7 +211,7 @@ export default function TermsPage() {
               </section>
 
               <section className="mb-8">
-                <h2 className="text-2xl font-semibold text-foreground mb-4">14. Contact Information</h2>
+                <h2 className="text-2xl font-semibold text-foreground mb-4">15. Contact Information</h2>
                 <p className="text-muted-foreground mb-4">
                   If you have any questions about these Terms of Service, please contact us:
                 </p>
