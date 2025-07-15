@@ -11,7 +11,44 @@ export async function POST(request: NextRequest) {
 
     const supabase = createServerSupabaseClient()
 
-    // First, try to create the user in auth
+    // Try to find existing user by email first (avoid listing all users)
+    const { data: existingUserResp, error: getUserError } = await supabase.auth.admin.getUserByEmail(email)
+
+    if (getUserError && !getUserError.message.includes("not found")) {
+      return NextResponse.json({
+        success: false,
+        message: "Error checking existing user",
+        details: getUserError.message,
+      }, { status: 500 })
+    }
+
+    if (existingUserResp?.user) {
+      // User already exists - upsert profile with admin role
+      const user = existingUserResp.user
+      const { error: profileError } = await supabase.from("profiles").upsert({
+        id: user.id,
+        email: user.email,
+        full_name: "System Administrator",
+        role: "admin",
+        updated_at: new Date().toISOString(),
+      })
+
+      if (profileError) {
+        return NextResponse.json({
+          success: false,
+          message: "User exists but failed to create/update profile",
+          details: profileError.message,
+        }, { status: 500 })
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: "Admin user already exists and profile updated successfully",
+        details: { userId: user.id, email: user.email },
+      })
+    }
+
+    // User does not exist, so create new admin user
     const { data: authData, error: authError } = await supabase.auth.admin.createUser({
       email,
       password,
@@ -22,56 +59,21 @@ export async function POST(request: NextRequest) {
     })
 
     if (authError) {
-      // If user already exists, that's okay
-      if (authError.message.includes("already registered") || authError.message.includes("already exists")) {
-        // Try to get the existing user
-        const { data: existingUser, error: getUserError } = await supabase.auth.admin.listUsers()
-
-        if (!getUserError && existingUser.users) {
-          const adminUser = existingUser.users.find((user) => user.email === email)
-
-          if (adminUser) {
-            // Create or update profile
-            const { error: profileError } = await supabase.from("profiles").upsert({
-              id: adminUser.id,
-              email: adminUser.email,
-              full_name: "System Administrator",
-              role: "admin",
-              updated_at: new Date().toISOString(),
-            })
-
-            if (profileError) {
-              return NextResponse.json({
-                success: false,
-                message: "User exists but failed to create/update profile",
-                details: profileError,
-              })
-            }
-
-            return NextResponse.json({
-              success: true,
-              message: "Admin user already exists and profile updated successfully",
-              details: { userId: adminUser.id, email: adminUser.email },
-            })
-          }
-        }
-      }
-
       return NextResponse.json({
         success: false,
         message: `Failed to create admin user: ${authError.message}`,
         details: authError,
-      })
+      }, { status: 500 })
     }
 
     if (!authData.user) {
       return NextResponse.json({
         success: false,
         message: "Failed to create user - no user data returned",
-      })
+      }, { status: 500 })
     }
 
-    // Create the profile
+    // Create profile for new user
     const { error: profileError } = await supabase.from("profiles").insert({
       id: authData.user.id,
       email: authData.user.email,
@@ -83,8 +85,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         success: false,
         message: "User created but failed to create profile",
-        details: profileError,
-      })
+        details: profileError.message,
+      }, { status: 500 })
     }
 
     return NextResponse.json({
@@ -103,7 +105,7 @@ export async function POST(request: NextRequest) {
         message: "Internal server error",
         details: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 },
+      { status: 500 }
     )
   }
 }
