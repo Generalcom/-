@@ -13,21 +13,21 @@ export const metadata: Metadata = {
 export default function AboutPage() {
   const teamMembers = [
     {
-      name: "Alex Johnson",
-      role: "CEO & Co-Founder",
-      bio: "Former AI researcher with 10+ years in machine learning and business strategy.",
+      name: "Junior Zwane",
+      role: "CEO & CTO",
+      bio: "Former AI researcher with 5+ years in machine learning and business strategy.",
       image: "/placeholder.svg?width=200&height=200",
     },
     {
       name: "Sarah Chen",
-      role: "CTO & Co-Founder",
+      role: "Co-Founder",
       bio: "Full-stack developer and AI specialist with expertise in scalable systems.",
       image: "/placeholder.svg?width=200&height=200",
     },
     {
       name: "David Miller",
       role: "Head of AI Research",
-      bio: "PhD in Computer Science, specializing in neural networks and deep learning.",
+      bio: "BHons in Computer Science, specializing in neural networks and deep learning.",
       image: "/placeholder.svg?width=200&height=200",
     },
   ]
@@ -117,7 +117,7 @@ export default function AboutPage() {
             </p>
 
             <p className="text-muted-foreground mb-6">
-              Today, we're proud to have helped over 200 businesses transform their operations through AI-powered
+              Today, we're proud to have helped over 46 businesses transform their operations through AI-powered
               solutions, from small startups to large enterprises across various industries.
             </p>
           </div>
