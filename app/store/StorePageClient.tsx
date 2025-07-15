@@ -4,20 +4,20 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { ShoppingCart, Star, Download, Zap, Brain, Code, TrendingUp, CheckCircle } from "lucide-react"
+import { ShoppingCart, Star, Download, Zap, Brain, Code, TrendingUp, CheckCircle, Shield, Lock, Headset, Server } from "lucide-react"
 import Link from "next/link"
 import { motion } from "framer-motion"
 import { useAuth } from "@/hooks/useAuth"
 import { useCart } from "@/hooks/useCart"
 import CartSidebar from "@/components/CartSidebar"
 import { toast } from "@/components/ui/use-toast"
-import { useRouter } from "next/navigation" // Import router
+import { useRouter } from "next/navigation"
 
 export default function StorePageClient() {
   const [isCartOpen, setIsCartOpen] = useState(false)
   const { user, profile } = useAuth()
   const { addToCart, getTotalItems } = useCart()
-  const router = useRouter() // Declare router
+  const router = useRouter()
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat("en-ZA", {
@@ -30,41 +30,55 @@ export default function StorePageClient() {
 
   const products = [
     {
-      id: "ai-training-basic",
-      title: "AI Training - Basic Package",
-      description:
-        "Get started with AI model training for your business data. Includes foundational concepts and hands-on exercises.",
+      id: "cyber-compliance",
+      title: "Cybersecurity & Compliance",
+      description: "Comprehensive security solutions including compliance audits and employee training.",
+      price: 85000,
+      originalPrice: 110000,
+      category: "Security",
+      icon: Lock,
+      features: [
+        "Firewall & antivirus setup",
+        "POPIA/GDPR compliance audits",
+        "Employee security training",
+        "Critical for legal protection",
+        "Risk management framework",
+      ],
+      popular: true,
+    },
+    {
+      id: "managed-it",
+      title: "Managed IT Support",
+      description: "Complete IT support package for businesses of all sizes.",
       price: 45000,
       originalPrice: 60000,
-      category: "AI Training",
-      icon: Brain,
+      category: "IT Support",
+      icon: Headset,
       features: [
-        "Custom model development fundamentals",
-        "Basic data preprocessing techniques",
-        "30-day email support",
-        "Introductory performance analytics",
-        "Model deployment overview",
+        "24/7 remote helpdesk",
+        "Device & network maintenance",
+        "Software updates & patching",
+        "Essential for all businesses",
+        "Monthly reporting included",
       ],
       popular: false,
     },
     {
-      id: "ai-training-pro",
-      title: "AI Training - Professional",
-      description:
-        "Advanced AI solutions with custom algorithms, optimization, and dedicated support for complex projects.",
-      price: 90000,
-      originalPrice: 120000,
-      category: "AI Training",
-      icon: Brain,
+      id: "cyber-security",
+      title: "Business Cyber Security",
+      description: "Comprehensive security assessment and protection for your business systems and data.",
+      price: 65000,
+      originalPrice: 85000,
+      category: "Security",
+      icon: Shield,
       features: [
-        "Advanced model architecture design",
-        "Real-time data processing strategies",
-        "90-day premium support (dedicated channel)",
-        "A/B testing framework setup",
-        "Custom API integration assistance",
-        "Continuous performance monitoring setup",
+        "Full vulnerability assessment",
+        "Penetration testing",
+        "Security policy development",
+        "Employee training materials",
+        "3-month monitoring period",
       ],
-      popular: true,
+      popular: false,
     },
     {
       id: "app-development",
@@ -80,7 +94,6 @@ export default function StorePageClient() {
         "AI model integration & API development",
         "Cloud deployment (AWS/Azure/GCP)",
         "60-day post-launch support",
-        "Mobile responsive & PWA options",
       ],
       popular: false,
     },
@@ -117,24 +130,7 @@ export default function StorePageClient() {
         "30-day follow-up email support",
       ],
       popular: false,
-    },
-    {
-      id: "ai-templates",
-      title: "AI Model Templates Pack",
-      description: "Pre-built & customizable AI models for common business use cases, accelerating your AI journey.",
-      price: 4500,
-      originalPrice: 7500,
-      category: "Templates",
-      icon: Download,
-      features: [
-        "10+ pre-trained model templates",
-        "Detailed documentation & guides",
-        "Easy integration with popular frameworks",
-        "Commercial use license included",
-        "Access to quarterly updates",
-      ],
-      popular: false,
-    },
+    }
   ]
 
   const handleAddToCart = (product: any) => {
@@ -145,7 +141,7 @@ export default function StorePageClient() {
       originalPrice: product.originalPrice,
       description: product.description,
       category: product.category,
-      quantity: 1, // Ensure quantity is passed
+      quantity: 1,
     })
     toast({
       title: `${product.title} added to cart!`,
@@ -155,7 +151,7 @@ export default function StorePageClient() {
 
   const handleBuyNow = (product: any) => {
     if (!user) {
-      router.push("/auth?redirect=/store") // Redirect to auth if not logged in
+      router.push("/auth?redirect=/store")
       return
     }
     handleAddToCart(product)
@@ -215,10 +211,9 @@ export default function StorePageClient() {
           transition={{ duration: 0.7 }}
           className="text-center mb-12 md:mb-16"
         >
-          <h1 className="text-4xl md:text-5xl font-bold text-foreground mb-4">Vort AI Solutions Store</h1>
+          <h1 className="text-4xl md:text-5xl font-bold text-foreground mb-4">Vort Business Solutions</h1>
           <p className="text-lg md:text-xl text-muted-foreground max-w-3xl mx-auto">
-            Discover our range of AI services and digital products designed to empower your business and drive
-            innovation.
+            Comprehensive technology services designed to secure and empower your business operations.
           </p>
         </motion.div>
 
@@ -226,11 +221,11 @@ export default function StorePageClient() {
           {products.map((product, index) => (
             <motion.div
               key={product.id}
-              id={product.id} // For anchor links
+              id={product.id}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: index * 0.1 }}
-              className="relative group flex" // Added flex for consistent height
+              className="relative group flex"
             >
               {product.popular && (
                 <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 z-10">
@@ -268,20 +263,12 @@ export default function StorePageClient() {
                       </Badge>
                     </div>
                     <ul className="space-y-1.5 mb-5">
-                      {product.features.slice(0, 3).map(
-                        (
-                          feature,
-                          idx, // Show first 3 features
-                        ) => (
-                          <li key={idx} className="flex items-center text-xs text-muted-foreground">
-                            <CheckCircle className="h-3.5 w-3.5 text-primary mr-1.5 flex-shrink-0" />
-                            {feature}
-                          </li>
-                        ),
-                      )}
-                      {product.features.length > 3 && (
-                        <li className="text-xs text-muted-foreground pl-5">...and more</li>
-                      )}
+                      {product.features.slice(0, 5).map((feature, idx) => (
+                        <li key={idx} className="flex items-center text-xs text-muted-foreground">
+                          <CheckCircle className="h-3.5 w-3.5 text-primary mr-1.5 flex-shrink-0" />
+                          {feature}
+                        </li>
+                      ))}
                     </ul>
                   </div>
                   <div className="space-y-2 mt-auto">
@@ -316,15 +303,14 @@ export default function StorePageClient() {
         >
           <Card className="bg-secondary border-border">
             <CardContent className="p-6 md:p-8">
-              <h3 className="text-xl font-semibold text-foreground mb-3">Secure & Reliable Payments</h3>
+              <h3 className="text-xl font-semibold text-foreground mb-3">Secure & Reliable Services</h3>
               <p className="text-muted-foreground mb-4 max-w-xl mx-auto text-sm">
-                All transactions are processed securely. We partner with trusted payment gateways to ensure your data is
-                safe. Currently using a mock payment system for demonstration.
+                Our solutions are designed with security and reliability in mind. We implement industry best practices to ensure your business operations remain protected and efficient.
               </p>
               <div className="flex justify-center items-center space-x-4 text-xs text-muted-foreground">
-                <span>🔒 SSL Encrypted</span>
-                <span>💳 Major Cards Accepted (Mock)</span>
-                <span>🇿🇦 ZAR Currency</span>
+                <span>🔒 Enterprise-grade Security</span>
+                <span>🛡️ Compliance Guaranteed</span>
+                <span>⏱️ 24/7 Support</span>
               </div>
             </CardContent>
           </Card>
