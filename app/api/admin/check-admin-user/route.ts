@@ -6,83 +6,61 @@ export async function POST(request: NextRequest) {
     const { email } = await request.json()
 
     if (!email) {
-      return NextResponse.json({ success: false, message: "Email is required" }, { status: 400 })
+      return NextResponse.json({ success: false, message: "Email is required." }, { status: 400 })
     }
 
     const supabase = createServerSupabaseClient()
 
-    // Check if user exists in auth.users
-    const { data: users, error: usersError } = await supabase.auth.admin.listUsers()
+    // ✅ Efficiently get user directly by email (instead of listing all users)
+    const { data: authUser, error: authError } = await supabase.auth.admin.getUserByEmail(email)
 
-    if (usersError) {
-      return NextResponse.json({
-        success: false,
-        message: `Failed to check users: ${usersError.message}`,
-        details: usersError,
-      })
+    if (authError || !authUser?.user) {
+      return NextResponse.json(
+        { success: false, message: "User not found in authentication system.", details: { email } },
+        { status: 404 }
+      )
     }
 
-    const adminUser = users.users.find((user) => user.email === email)
+    const { id, email: foundEmail, created_at, email_confirmed_at } = authUser.user
 
-    if (!adminUser) {
-      return NextResponse.json({
-        success: false,
-        message: "Admin user not found in authentication system",
-        details: { email, found: false },
-      })
-    }
-
-    // Check if profile exists
+    // 🔍 Check if profile exists for the user ID
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
-      .select("*")
-      .eq("id", adminUser.id)
+      .select("id, email, full_name, role, created_at")
+      .eq("id", id)
       .single()
 
-    if (profileError) {
-      return NextResponse.json({
-        success: false,
-        message: "Admin user exists in auth but profile not found",
-        details: {
-          authUser: {
-            id: adminUser.id,
-            email: adminUser.email,
-            created_at: adminUser.created_at,
-            email_confirmed_at: adminUser.email_confirmed_at,
+    if (profileError || !profile) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "User exists in auth but profile not found.",
+          details: {
+            authUser: { id, email: foundEmail, created_at, email_confirmed_at },
+            error: profileError?.message,
           },
-          profileError: profileError.message,
         },
-      })
+        { status: 404 }
+      )
     }
 
     return NextResponse.json({
       success: true,
-      message: "Admin user and profile found successfully",
+      message: "Admin user and profile found successfully.",
       details: {
-        authUser: {
-          id: adminUser.id,
-          email: adminUser.email,
-          created_at: adminUser.created_at,
-          email_confirmed_at: adminUser.email_confirmed_at,
-        },
-        profile: {
-          id: profile.id,
-          email: profile.email,
-          full_name: profile.full_name,
-          role: profile.role,
-          created_at: profile.created_at,
-        },
+        authUser: { id, email: foundEmail, created_at, email_confirmed_at },
+        profile,
       },
     })
   } catch (error) {
-    console.error("Error in check-admin-user API:", error)
+    console.error("check-admin-user error:", error)
     return NextResponse.json(
       {
         success: false,
-        message: "Internal server error",
+        message: "Internal server error.",
         details: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 },
+      { status: 500 }
     )
   }
 }
